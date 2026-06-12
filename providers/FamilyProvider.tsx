@@ -6,6 +6,17 @@ import { calculateEmissions } from '../lib/emissionCalculator';
 import { generateWeeklyPlan } from '../lib/scoringEngine';
 import { evaluateNudges } from '../lib/nudgeEngine';
 import { BADGE_DEFINITIONS } from '../data/badgeDefinitions';
+import { db, auth, isFirebaseEnabled } from '../lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { 
+  collection, 
+  doc, 
+  setDoc, 
+  getDocs, 
+  query, 
+  where, 
+  writeBatch 
+} from 'firebase/firestore';
 import { 
   X, 
   Sprout, 
@@ -304,6 +315,16 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [activeToast, setActiveToast] = useState<{ badgeKey: string; title: string; description: string } | null>(null);
 
+  const writeDoc = async (col: string, docId: string, data: any) => {
+    if (isFirebaseEnabled() && db) {
+      try {
+        await setDoc(doc(db, col, docId), data);
+      } catch (e) {
+        console.error(`Error saving to Firestore [${col}/${docId}]:`, e);
+      }
+    }
+  };
+
   const triggerBadgeNotification = (badgeKey: string, familyIdToUse?: string) => {
     if (typeof window === 'undefined') return;
 
@@ -355,6 +376,13 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setBadges(finalBadges);
     localStorage.setItem('zr_badges', JSON.stringify(finalBadges));
+
+    if (isFirebaseEnabled() && db) {
+      finalBadges.forEach(b => {
+        writeDoc('badges', b.id, b);
+      });
+    }
+
     return finalBadges;
   };
 
@@ -374,105 +402,256 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       Notification.requestPermission();
     }
 
-    // Load or initialize all states
-    const localProfile = localStorage.getItem('zr_profile');
-    if (localProfile) {
-      setFamilyProfile(JSON.parse(localProfile));
-      setMembers(JSON.parse(localStorage.getItem('zr_members') || '[]'));
-      setVehicles(JSON.parse(localStorage.getItem('zr_vehicles') || '[]'));
-      
-      // Auto-sanitize existing logs from localStorage to round float values (e.g. AC hours)
-      const rawLogs = JSON.parse(localStorage.getItem('zr_logs') || '[]');
-      const sanitizedLogs = rawLogs.map((log: any) => ({
-        ...log,
-        value: typeof log.value === 'number' ? Math.round(log.value * 10) / 10 : log.value
-      }));
-      setEmissionLogs(sanitizedLogs);
-      localStorage.setItem('zr_logs', JSON.stringify(sanitizedLogs));
-      
-      // Auto-sanitize existing badges to make sure ev_pioneer is unlocked for the active family profile
-      const parsedBadges = JSON.parse(localStorage.getItem('zr_badges') || '[]');
-      const activeFamilyId = JSON.parse(localProfile).id;
-      if (activeFamilyId && !parsedBadges.some((b: any) => b.badgeKey === 'ev_pioneer')) {
-        parsedBadges.push({
-          id: `badge_ev_migrated_${Date.now()}`,
-          familyId: activeFamilyId,
-          badgeKey: 'ev_pioneer',
-          earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-          treeUnlocked: true
-        });
-        localStorage.setItem('zr_badges', JSON.stringify(parsedBadges));
+    const loadData = async () => {
+      if (isFirebaseEnabled() && db && auth?.currentUser) {
+        const currentFirebaseUser = auth.currentUser;
+        try {
+          const familiesRef = collection(db, 'families');
+          const q = query(familiesRef, where('creatorUid', '==', currentFirebaseUser.uid));
+          const querySnapshot = await getDocs(q);
+
+          if (!querySnapshot.empty) {
+            // Found existing family on Firestore
+            const familyDoc = querySnapshot.docs[0];
+            const profile = { id: familyDoc.id, ...familyDoc.data() } as FamilyProfile;
+            setFamilyProfile(profile);
+
+            // Load members
+            const membersSnap = await getDocs(query(collection(db, 'familyMembers'), where('familyId', '==', profile.id)));
+            const membersList = membersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
+            setMembers(membersList);
+
+            // Load vehicles
+            const vehiclesSnap = await getDocs(query(collection(db, 'vehicles'), where('familyId', '==', profile.id)));
+            const vehiclesList = vehiclesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Vehicle[];
+            setVehicles(vehiclesList);
+
+            // Load logs (sort by date desc)
+            const logsSnap = await getDocs(query(collection(db, 'emissionLogs'), where('familyId', '==', profile.id)));
+            const logsList = logsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as EmissionLog[];
+            const sortedLogs = logsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            setEmissionLogs(sortedLogs);
+
+            // Load weekly plans
+            const plansSnap = await getDocs(query(collection(db, 'weeklyPlans'), where('familyId', '==', profile.id)));
+            const plansList = plansSnap.docs.map(d => ({ id: d.id, ...d.data() })) as WeeklyPlan[];
+            const sortedPlans = plansList.sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime());
+            setWeeklyPlans(sortedPlans);
+
+            // Load badges
+            const badgesSnap = await getDocs(query(collection(db, 'badges'), where('familyId', '==', profile.id)));
+            const badgesList = badgesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Badge[];
+            setBadges(badgesList);
+
+            // Load leaderboard
+            const lbSnap = await getDocs(collection(db, 'leaderboard'));
+            const lbList = lbSnap.docs.map(d => d.data()) as LeaderboardEntry[];
+            const sortedLb = lbList.sort((a, b) => b.reductionPercent - a.reductionPercent)
+                                   .map((e, idx) => ({ ...e, weekRank: idx + 1 }));
+            setLeaderboard(sortedLb);
+
+            // Save locally for offline cache speed
+            localStorage.setItem('zr_profile', JSON.stringify(profile));
+            localStorage.setItem('zr_members', JSON.stringify(membersList));
+            localStorage.setItem('zr_vehicles', JSON.stringify(vehiclesList));
+            localStorage.setItem('zr_logs', JSON.stringify(sortedLogs));
+            localStorage.setItem('zr_badges', JSON.stringify(badgesList));
+            localStorage.setItem('zr_weekly_plans', JSON.stringify(sortedPlans));
+            localStorage.setItem('zr_leaderboard', JSON.stringify(sortedLb));
+          } else {
+            // No family on Firestore yet, seed default Green Family mapped to this user
+            const newFid = DEFAULT_FAMILY_ID;
+            const updatedProfile = {
+              ...defaultProfile,
+              creatorUid: currentFirebaseUser.uid
+            };
+
+            const batch = writeBatch(db);
+            batch.set(doc(db, 'families', newFid), updatedProfile);
+
+            // Map Father (primary creator user) to request.auth.uid + '_' + familyId for security rule compliance
+            const updatedMembers = defaultMembers.map(m => {
+              if (m.role === 'Father') {
+                return {
+                  ...m,
+                  id: `${currentFirebaseUser.uid}_${newFid}`
+                };
+              }
+              return m;
+            });
+
+            updatedMembers.forEach(m => {
+              batch.set(doc(db, 'familyMembers', m.id), m);
+            });
+
+            const logs = generateMockLogsForMembers(newFid, updatedMembers, defaultVehicles);
+            logs.forEach(l => {
+              batch.set(doc(db, 'emissionLogs', l.id), l);
+            });
+
+            const firstBadge = {
+              id: 'badge_1',
+              familyId: newFid,
+              badgeKey: 'first_log',
+              earnedAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString(),
+              treeUnlocked: true,
+            };
+            const evBadge = {
+              id: 'badge_2',
+              familyId: newFid,
+              badgeKey: 'ev_pioneer',
+              earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+              treeUnlocked: true,
+            };
+            const initialBadges = [firstBadge, evBadge];
+            initialBadges.forEach(b => {
+              batch.set(doc(db, 'badges', b.id), b);
+            });
+
+            const MondayOfThisWeek = new Date();
+            MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7));
+            const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
+            const lastWeekLogs = logs.filter(log => {
+              const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+              return diffDays > 7 && diffDays <= 14;
+            });
+
+            const initialPlan = generateWeeklyPlan(newFid, weekStartStr, lastWeekLogs, updatedMembers, defaultVehicles);
+            batch.set(doc(db, 'weeklyPlans', initialPlan.id), initialPlan);
+
+            const initialLeaderboard = updateLeaderboardScore(newFid, updatedProfile.name, updatedProfile.neighbourhoodId, logs, initialBadges, defaultVehicles);
+            initialLeaderboard.forEach(entry => {
+              batch.set(doc(db, 'leaderboard', entry.familyId), entry);
+            });
+
+            await batch.commit();
+
+            // Set state
+            setFamilyProfile(updatedProfile);
+            setMembers(updatedMembers);
+            setVehicles(defaultVehicles);
+            setEmissionLogs(logs);
+            setWeeklyPlans([initialPlan]);
+            setBadges(initialBadges);
+            setLeaderboard(initialLeaderboard);
+
+            // Save to localStorage
+            localStorage.setItem('zr_profile', JSON.stringify(updatedProfile));
+            localStorage.setItem('zr_members', JSON.stringify(updatedMembers));
+            localStorage.setItem('zr_vehicles', JSON.stringify(defaultVehicles));
+            localStorage.setItem('zr_logs', JSON.stringify(logs));
+            localStorage.setItem('zr_badges', JSON.stringify(initialBadges));
+            localStorage.setItem('zr_weekly_plans', JSON.stringify([initialPlan]));
+            localStorage.setItem('zr_leaderboard', JSON.stringify(initialLeaderboard));
+
+            fetchGeminiReasoning(initialPlan, updatedProfile.name, logs);
+          }
+        } catch (error) {
+          console.error("Error loading/seeding data from Firestore:", error);
+        }
+      } else {
+        // Fall back to original localStorage loading logic
+        const localProfile = localStorage.getItem('zr_profile');
+        if (localProfile) {
+          setFamilyProfile(JSON.parse(localProfile));
+          setMembers(JSON.parse(localStorage.getItem('zr_members') || '[]'));
+          setVehicles(JSON.parse(localStorage.getItem('zr_vehicles') || '[]'));
+          
+          const rawLogs = JSON.parse(localStorage.getItem('zr_logs') || '[]');
+          const sanitizedLogs = rawLogs.map((log: any) => ({
+            ...log,
+            value: typeof log.value === 'number' ? Math.round(log.value * 10) / 10 : log.value
+          }));
+          setEmissionLogs(sanitizedLogs);
+          localStorage.setItem('zr_logs', JSON.stringify(sanitizedLogs));
+          
+          const parsedBadges = JSON.parse(localStorage.getItem('zr_badges') || '[]');
+          const activeFamilyId = JSON.parse(localProfile).id;
+          if (activeFamilyId && !parsedBadges.some((b: any) => b.badgeKey === 'ev_pioneer')) {
+            parsedBadges.push({
+              id: `badge_ev_migrated_${Date.now()}`,
+              familyId: activeFamilyId,
+              badgeKey: 'ev_pioneer',
+              earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+              treeUnlocked: true
+            });
+            localStorage.setItem('zr_badges', JSON.stringify(parsedBadges));
+          }
+          setBadges(parsedBadges);
+          setWeeklyPlans(JSON.parse(localStorage.getItem('zr_weekly_plans') || '[]'));
+          setNudgeAlert(JSON.parse(localStorage.getItem('zr_nudge') || 'null'));
+          setLeaderboard(JSON.parse(localStorage.getItem('zr_leaderboard') || '[]'));
+        } else {
+          // Setup default mock data
+          localStorage.setItem('zr_profile', JSON.stringify(defaultProfile));
+          localStorage.setItem('zr_members', JSON.stringify(defaultMembers));
+          localStorage.setItem('zr_vehicles', JSON.stringify(defaultVehicles));
+          
+          const logs = generateMockLogsForMembers(DEFAULT_FAMILY_ID, defaultMembers, defaultVehicles);
+          localStorage.setItem('zr_logs', JSON.stringify(logs));
+          
+          const firstBadge = {
+            id: 'badge_1',
+            familyId: DEFAULT_FAMILY_ID,
+            badgeKey: 'first_log',
+            earnedAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString(),
+            treeUnlocked: true,
+          };
+          const evBadge = {
+            id: 'badge_2',
+            familyId: DEFAULT_FAMILY_ID,
+            badgeKey: 'ev_pioneer',
+            earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+            treeUnlocked: true,
+          };
+          const initialBadges = [firstBadge, evBadge];
+          localStorage.setItem('zr_badges', JSON.stringify(initialBadges));
+
+          const MondayOfThisWeek = new Date();
+          MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7));
+          const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
+          const lastWeekLogs = logs.filter(log => {
+            const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays > 7 && diffDays <= 14;
+          });
+
+          const initialPlan = generateWeeklyPlan(DEFAULT_FAMILY_ID, weekStartStr, lastWeekLogs, defaultMembers, defaultVehicles);
+          const initialPlans = [initialPlan];
+          localStorage.setItem('zr_weekly_plans', JSON.stringify(initialPlans));
+
+          const initialNudge = evaluateNudges(DEFAULT_FAMILY_ID, logs.filter(log => {
+            const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays <= 7;
+          }), logs.filter(log => {
+            const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+            return diffDays > 7;
+          }), defaultProfile.goalPercent, 200);
+          localStorage.setItem('zr_nudge', JSON.stringify(initialNudge));
+
+          setFamilyProfile(defaultProfile);
+          setMembers(defaultMembers);
+          setVehicles(defaultVehicles);
+          setEmissionLogs(logs);
+          setWeeklyPlans(initialPlans);
+          setBadges(initialBadges);
+          setNudgeAlert(initialNudge);
+
+          const initialLeaderboard = updateLeaderboardScore(DEFAULT_FAMILY_ID, defaultProfile.name, defaultProfile.neighbourhoodId, logs, initialBadges, defaultVehicles);
+          setLeaderboard(initialLeaderboard);
+          localStorage.setItem('zr_leaderboard', JSON.stringify(initialLeaderboard));
+        }
       }
-      setBadges(parsedBadges);
-      
-      setWeeklyPlans(JSON.parse(localStorage.getItem('zr_weekly_plans') || '[]'));
-      setNudgeAlert(JSON.parse(localStorage.getItem('zr_nudge') || 'null'));
-      setLeaderboard(JSON.parse(localStorage.getItem('zr_leaderboard') || '[]'));
-    } else {
-      // Setup default mock data
-      localStorage.setItem('zr_profile', JSON.stringify(defaultProfile));
-      localStorage.setItem('zr_members', JSON.stringify(defaultMembers));
-      localStorage.setItem('zr_vehicles', JSON.stringify(defaultVehicles));
-      
-      const logs = generateMockLogsForMembers(DEFAULT_FAMILY_ID, defaultMembers, defaultVehicles);
-      localStorage.setItem('zr_logs', JSON.stringify(logs));
-      
-      // Seed first badges (First Log and EV Pioneer)
-      const firstBadge: Badge = {
-        id: 'badge_1',
-        familyId: DEFAULT_FAMILY_ID,
-        badgeKey: 'first_log',
-        earnedAt: new Date(Date.now() - 27 * 24 * 60 * 60 * 1000).toISOString(),
-        treeUnlocked: true,
-      };
-      const evBadge: Badge = {
-        id: 'badge_2',
-        familyId: DEFAULT_FAMILY_ID,
-        badgeKey: 'ev_pioneer',
-        earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-        treeUnlocked: true,
-      };
-      const initialBadges = [firstBadge, evBadge];
-      localStorage.setItem('zr_badges', JSON.stringify(initialBadges));
+    };
 
-      // Build initial weekly plan
-      const MondayOfThisWeek = new Date();
-      MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7)); // get current week Monday
-      const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
-      
-      const lastWeekLogs = logs.filter(log => {
-        const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-        return diffDays > 7 && diffDays <= 14;
+    if (isFirebaseEnabled() && auth) {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        if (firebaseUser) {
+          loadData();
+        }
       });
-
-      const initialPlan = generateWeeklyPlan(DEFAULT_FAMILY_ID, weekStartStr, lastWeekLogs, defaultMembers, defaultVehicles);
-      const initialPlans = [initialPlan];
-      localStorage.setItem('zr_weekly_plans', JSON.stringify(initialPlans));
-
-      // Calculate initial nudges
-      const initialNudge = evaluateNudges(DEFAULT_FAMILY_ID, logs.filter(log => {
-        const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-        return diffDays <= 7;
-      }), logs.filter(log => {
-        const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-        return diffDays > 7;
-      }), defaultProfile.goalPercent, 200);
-
-      localStorage.setItem('zr_nudge', JSON.stringify(initialNudge));
-
-      // Initialize State
-      setFamilyProfile(defaultProfile);
-      setMembers(defaultMembers);
-      setVehicles(defaultVehicles);
-      setEmissionLogs(logs);
-      setWeeklyPlans(initialPlans);
-      setBadges(initialBadges);
-      setNudgeAlert(initialNudge);
-      
-      // Set leaderboard
-      const updatedLeaderboard = updateLeaderboardScore(DEFAULT_FAMILY_ID, defaultProfile.name, defaultProfile.neighbourhoodId, logs, initialBadges, defaultVehicles);
-      setLeaderboard(updatedLeaderboard);
-      localStorage.setItem('zr_leaderboard', JSON.stringify(updatedLeaderboard));
+      return () => unsubscribe();
+    } else {
+      loadData();
     }
   }, []);
 
@@ -540,24 +719,35 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     memberList: { name: string; ageGroup: 'child' | 'teen' | 'adult'; role: string }[],
     vehicleList: { type: 'petrol' | 'diesel' | 'cng' | 'ev'; label: string }[]
   ) => {
+    const currentFirebaseUid = isFirebaseEnabled() && auth?.currentUser ? auth.currentUser.uid : null;
     const fId = `fam_${Date.now()}`;
     const newProfile: FamilyProfile = {
       id: fId,
       name,
-      creatorUid: 'mem_primary_123',
+      creatorUid: currentFirebaseUid || 'mem_primary_123',
       cityId,
       neighbourhoodId,
       goalPercent,
       createdAt: new Date().toISOString()
     };
 
-    const newMembers: FamilyMember[] = memberList.map((m, idx) => ({
-      id: `mem_${idx}_${Date.now()}`,
-      familyId: fId,
-      name: m.name,
-      ageGroup: m.ageGroup,
-      role: m.role
-    }));
+    // Find primary member (first adult or fallback to index 0)
+    const primaryIndex = memberList.findIndex(m => m.ageGroup === 'adult');
+    const actualPrimaryIdx = primaryIndex > -1 ? primaryIndex : 0;
+
+    const newMembers: FamilyMember[] = memberList.map((m, idx) => {
+      let mId = `mem_${idx}_${Date.now()}`;
+      if (idx === actualPrimaryIdx && currentFirebaseUid) {
+        mId = `${currentFirebaseUid}_${fId}`;
+      }
+      return {
+        id: mId,
+        familyId: fId,
+        name: m.name,
+        ageGroup: m.ageGroup,
+        role: m.role
+      };
+    });
 
     const newVehicles: Vehicle[] = vehicleList.map((v, idx) => ({
       id: `veh_${idx}_${Date.now()}`,
@@ -628,6 +818,43 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const initialLeaderboard = updateLeaderboardScore(fId, name, neighbourhoodId, logs, initialBadges, newVehicles);
     setLeaderboard(initialLeaderboard);
     localStorage.setItem('zr_leaderboard', JSON.stringify(initialLeaderboard));
+
+    if (isFirebaseEnabled() && db) {
+      try {
+        const batch = writeBatch(db);
+        batch.set(doc(db, 'families', fId), newProfile);
+        
+        newMembers.forEach(m => {
+          batch.set(doc(db, 'familyMembers', m.id), m);
+        });
+        
+        newVehicles.forEach(v => {
+          batch.set(doc(db, 'vehicles', v.id), v);
+        });
+        
+        logs.forEach(l => {
+          batch.set(doc(db, 'emissionLogs', l.id), l);
+        });
+        
+        initialBadges.forEach(b => {
+          batch.set(doc(db, 'badges', b.id), b);
+        });
+        
+        initialPlans.forEach(p => {
+          batch.set(doc(db, 'weeklyPlans', p.id), p);
+        });
+        
+        initialLeaderboard.forEach(entry => {
+          batch.set(doc(db, 'leaderboard', entry.familyId), entry);
+        });
+        
+        batch.commit().catch(e => console.error("Error committing setupFamily batch:", e));
+      } catch (e) {
+        console.error("Error staging setupFamily batch:", e);
+      }
+    }
+
+    fetchGeminiReasoning(initialPlan, name, logs);
   };
 
   const addLog = (log: Omit<EmissionLog, 'id' | 'co2Kg' | 'familyId'>) => {
@@ -646,6 +873,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const updatedLogs = [newLog, ...emissionLogs];
     setEmissionLogs(updatedLogs);
     localStorage.setItem('zr_logs', JSON.stringify(updatedLogs));
+
+    writeDoc('emissionLogs', newLog.id, newLog);
 
     // Check & Unlock First Log Badge
     let updatedBadges = [...badges];
@@ -878,6 +1107,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     setLeaderboard(finalLeaderboard);
     localStorage.setItem('zr_leaderboard', JSON.stringify(finalLeaderboard));
+
+    if (isFirebaseEnabled() && db) {
+      finalLeaderboard.forEach(entry => {
+        writeDoc('leaderboard', entry.familyId, entry);
+      });
+    }
   };
 
   const markSuggestionCompleted = (suggestionId: string) => {
@@ -894,6 +1129,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const newPlans = [activePlan, ...weeklyPlans.slice(1)];
       setWeeklyPlans(newPlans);
       localStorage.setItem('zr_weekly_plans', JSON.stringify(newPlans));
+
+      writeDoc('weeklyPlans', activePlan.id, activePlan);
 
       // Handle specific suggestion badges (e.g. LED, plants)
       let updatedBadges = [...badges];
@@ -942,6 +1179,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setLeaderboard(updatedLeaderboard);
       localStorage.setItem('zr_leaderboard', JSON.stringify(updatedLeaderboard));
+
+      if (isFirebaseEnabled() && db) {
+        updatedLeaderboard.forEach(entry => {
+          writeDoc('leaderboard', entry.familyId, entry);
+        });
+      }
     }
   };
 
@@ -974,6 +1217,8 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setWeeklyPlans(newPlans);
       localStorage.setItem('zr_weekly_plans', JSON.stringify(newPlans));
 
+      writeDoc('weeklyPlans', activePlan.id, activePlan);
+
       // Save badges using helper which also checks forest_keeper
       updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
@@ -999,6 +1244,12 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setLeaderboard(updatedLeaderboard);
       localStorage.setItem('zr_leaderboard', JSON.stringify(updatedLeaderboard));
+
+      if (isFirebaseEnabled() && db) {
+        updatedLeaderboard.forEach(entry => {
+          writeDoc('leaderboard', entry.familyId, entry);
+        });
+      }
     }
   };
 
@@ -1007,6 +1258,64 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const updated = { ...nudgeAlert, dismissed: true };
       setNudgeAlert(updated);
       localStorage.setItem('zr_nudge', JSON.stringify(updated));
+    }
+  };
+
+  const fetchGeminiReasoning = async (plan: WeeklyPlan, famName?: string, customLogsList?: EmissionLog[]) => {
+    try {
+      const targetLogs = customLogsList || emissionLogs || [];
+      const planDate = new Date(plan.weekStart);
+      const logsForPlan = targetLogs.filter(log => {
+        const logDate = new Date(log.date);
+        const diffDays = (planDate.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays >= 0 && diffDays <= 7;
+      });
+
+      const totalEnergy = logsForPlan.filter(l => l.category === 'energy').reduce((sum, l) => sum + l.co2Kg, 0);
+      const totalTransport = logsForPlan.filter(l => l.category === 'transport').reduce((sum, l) => sum + l.co2Kg, 0);
+
+      const logsSummary = logsForPlan.map(l => ({
+        category: l.category,
+        subType: l.subType,
+        value: l.value,
+        unit: l.unit,
+        co2Kg: Number(l.co2Kg.toFixed(1))
+      }));
+
+      const res = await fetch('/api/generate-reasoning', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          familyName: famName || familyProfile?.name || 'Green Family',
+          hotspotCategory: plan.hotspotCategory,
+          totalCo2: totalEnergy + totalTransport,
+          totalEnergyCo2: totalEnergy,
+          totalTransportCo2: totalTransport,
+          logsSummary: logsSummary.slice(0, 15)
+        })
+      });
+
+      if (!res.ok) throw new Error("API call failed");
+      const data = await res.json();
+      
+      if (data.reasoning) {
+        setWeeklyPlans(prevPlans => {
+          const updatedPlans = prevPlans.map(p => {
+            if (p.id === plan.id) {
+              const updatedPlan = { ...p, reasoningText: data.reasoning };
+              writeDoc('weeklyPlans', plan.id, updatedPlan);
+              return updatedPlan;
+            }
+            return p;
+          });
+          localStorage.setItem('zr_weekly_plans', JSON.stringify(updatedPlans));
+          return updatedPlans;
+        });
+      }
+    } catch (e) {
+      console.error("Failed to fetch Gemini weekly reasoning:", e);
     }
   };
 
@@ -1025,6 +1334,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     setWeeklyPlans(updatedPlans);
     localStorage.setItem('zr_weekly_plans', JSON.stringify(updatedPlans));
+
+    writeDoc('weeklyPlans', newPlan.id, newPlan);
+
+    fetchGeminiReasoning(newPlan, familyProfile.name, lastWeekLogs);
   };
 
   return (

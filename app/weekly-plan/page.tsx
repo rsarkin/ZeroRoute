@@ -3,7 +3,7 @@
 import React from 'react';
 import { useWeeklyPlan } from '../../hooks/useWeeklyPlan';
 import { useFamily } from '../../providers/FamilyProvider';
-import { CheckSquare, Square, RefreshCcw, HelpCircle, Award, Target, MessageSquare } from 'lucide-react';
+import { CheckSquare, Square, RefreshCcw, HelpCircle, Award, Target, MessageSquare, CalendarPlus } from 'lucide-react';
 
 export default function WeeklyPlanPage() {
   const { currentPlan, markActionCompleted, markSuggestionCompleted, regeneratePlan } = useWeeklyPlan();
@@ -21,13 +21,59 @@ export default function WeeklyPlanPage() {
   const getMemberName = (id: string) => members.find(m => m.id === id)?.name || 'Member';
   const getMemberRole = (id: string) => members.find(m => m.id === id)?.role || '';
 
+  const getGoogleCalendarUrl = (actionName: string, weekStart: string) => {
+    try {
+      const baseDate = new Date(weekStart);
+      if (isNaN(baseDate.getTime())) return '';
+      
+      const formatDate = (date: Date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}${m}${d}`;
+      };
+
+      const startDateStr = formatDate(baseDate);
+      const endDate = new Date(baseDate);
+      endDate.setDate(endDate.getDate() + 1);
+      const endDateStr = formatDate(endDate);
+
+      const title = encodeURIComponent(`ZeroRoute: ${actionName}`);
+      const details = encodeURIComponent(`Assigned carbon reduction micro-action for the week of ${weekStart}. Let's cooperate to lower our carbon footprint!`);
+      
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startDateStr}/${endDateStr}`;
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const formatWeekDisplay = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return `Week of ${dateString}`;
+      
+      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+      const month = monthNames[date.getMonth()];
+      const year = date.getFullYear();
+      const dateNum = date.getDate();
+      
+      const weekNum = Math.ceil(dateNum / 7);
+      const ordinals = ["", "1st", "2nd", "3rd", "4th", "5th"];
+      const ordinal = ordinals[weekNum] || `${weekNum}th`;
+      
+      return `${ordinal} week ${month} ${year}`;
+    } catch {
+      return `Week of ${dateString}`;
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full space-y-8">
       {/* Page Header */}
       <div className="flex justify-between items-center border-b border-hairline pb-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink-deep">Weekly Carbon Action Plan</h1>
-          <p className="text-sm text-slate mt-1">Week of {currentPlan.weekStart}</p>
+          <p className="text-sm text-slate mt-1">{formatWeekDisplay(currentPlan.weekStart)}</p>
         </div>
         <button
           onClick={regeneratePlan}
@@ -38,13 +84,13 @@ export default function WeeklyPlanPage() {
       </div>
 
       {/* Shared Goal Section */}
-      <div className="p-6 bg-card-tint-lavender border border-brand-purple/20 rounded-xl flex items-start gap-4">
-        <div className="w-12 h-12 rounded-lg bg-brand-purple/10 text-brand-purple flex items-center justify-center shrink-0">
+      <div className="p-6 bg-card-tint-mint border border-forest-green/20 rounded-xl flex items-start gap-4">
+        <div className="w-12 h-12 rounded-lg bg-forest-green/10 text-forest-green flex items-center justify-center shrink-0">
           <Target className="w-6 h-6" />
         </div>
         <div>
-          <span className="text-xxs font-bold uppercase tracking-wider text-brand-purple-800 bg-brand-purple-300/30 px-2 py-0.5 rounded">Shared Family Goal</span>
-          <h2 className="text-xl font-bold text-brand-purple-800 mt-2">{currentPlan.sharedGoal}</h2>
+          <span className="text-xxs font-bold uppercase tracking-wider text-forest-green bg-forest-green/10 px-2 py-0.5 rounded">Shared Family Goal</span>
+          <h2 className="text-xl font-bold text-forest-green mt-2">{currentPlan.sharedGoal}</h2>
           <p className="text-sm text-slate-700 mt-2 leading-relaxed">
             Cooperate as a household to meet this target by the end of the week.
           </p>
@@ -69,9 +115,9 @@ export default function WeeklyPlanPage() {
                 }`}
               >
                 <div className="flex gap-3 items-start">
-                  <div className="text-primary mt-0.5">
+                  <div className="text-forest-green mt-0.5">
                     {action.completed ? (
-                      <CheckSquare className="w-5 h-5 fill-primary/10" />
+                      <CheckSquare className="w-5 h-5 fill-forest-green/10" />
                     ) : (
                       <Square className="w-5 h-5" />
                     )}
@@ -83,9 +129,25 @@ export default function WeeklyPlanPage() {
                     </p>
                   </div>
                 </div>
-                {action.completed && (
-                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Done</span>
-                )}
+                <div className="flex items-center gap-2">
+                  {!action.completed && (
+                    <a
+                      href={getGoogleCalendarUrl(action.action, currentPlan.weekStart)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Add to Google Calendar"
+                      className="p-1.5 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-colors cursor-pointer flex flex-col items-center justify-center gap-1"
+                      aria-label="Add to Google Calendar"
+                    >
+                      <CalendarPlus className="w-4 h-4" />
+                      <span className="text-[10px] leading-none">Add to Calendar</span>
+                    </a>
+                  )}
+                  {action.completed && (
+                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Done</span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -129,7 +191,7 @@ export default function WeeklyPlanPage() {
               className={`p-5 border rounded-xl flex flex-col justify-between space-y-4 transition-all ${
                 sug.completed 
                   ? 'bg-slate-50/70 border-slate-200 opacity-60' 
-                  : 'bg-white border-hairline shadow-2xs'
+                  : 'bg-card-tint-mint border-forest-green/20 shadow-2xs'
               }`}
             >
               <div className="space-y-2">
@@ -145,7 +207,7 @@ export default function WeeklyPlanPage() {
               {!sug.completed ? (
                 <button
                   onClick={() => markSuggestionCompleted(sug.id)}
-                  className="notion-btn-primary py-1.5 text-xs font-bold w-full"
+                  className="bg-forest-green text-white hover:opacity-90 transition-opacity rounded-md py-1.5 text-xs font-bold w-full"
                 >
                   Mark as Completed
                 </button>

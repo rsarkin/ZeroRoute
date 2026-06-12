@@ -51,7 +51,7 @@ export function generateWeeklyPlan(
   let hotspotPercent = 0;
   
   if (totalCo2 > 0) {
-    if (totalTransportCo2 > totalEnergyCo2) {
+    if (totalTransportCo2 >= totalEnergyCo2) {
       hotspotCategory = 'transport';
       hotspotPercent = Math.round((totalTransportCo2 / totalCo2) * 100);
     } else {

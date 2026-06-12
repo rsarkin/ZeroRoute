@@ -2,7 +2,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth, mockUsers } from '../providers/AuthProvider';
+import { useAuth } from '../providers/AuthProvider';
 import { useFamily } from '../providers/FamilyProvider';
 import { 
   TreePine, 
@@ -20,9 +20,7 @@ export const Navbar: React.FC = () => {
   const { user, loginAs, logout } = useAuth();
   const { familyProfile } = useFamily();
 
-  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    loginAs(e.target.value);
-  };
+
 
   const resetAllData = () => {
     if (confirm('Are you sure you want to reset all data? This will clear all logs, badges, and profile info.')) {
@@ -101,30 +99,11 @@ export const Navbar: React.FC = () => {
 
         {/* Bottom Control & Simulation Panel */}
         <div className="space-y-4 pt-4 border-t border-hairline">
-          {user && (
-            <div className="flex flex-col bg-surface border border-hairline px-3 py-2.5 rounded-lg gap-1.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate">
-                <UserCheck className="w-3.5 h-3.5 text-primary" />
-                <span>Simulate User</span>
-              </div>
-              <label htmlFor="role-select" className="sr-only">Simulate user</label>
-              <select
-                id="role-select"
-                value={user.role}
-                onChange={handleRoleChange}
-                className="bg-transparent text-xs font-semibold text-charcoal focus:outline-none border-none w-full cursor-pointer"
-              >
-                {Object.keys(mockUsers).map(role => (
-                  <option key={role} value={role}>
-                    {mockUsers[role].displayName}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+
 
           <div className="flex gap-2">
             <button
+              aria-label="Reset all user data"
               onClick={resetAllData}
               title="Reset Database to Default"
               className="flex-1 flex items-center justify-center gap-1.5 p-2 text-xs text-slate hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-hairline font-medium"
@@ -135,6 +114,7 @@ export const Navbar: React.FC = () => {
 
             <Link href="/" className="flex-1">
               <button 
+                aria-label="Sign out of account"
                 onClick={logout}
                 title="Sign Out"
                 className="w-full flex items-center justify-center gap-1.5 p-2 text-xs text-slate hover:text-ink hover:bg-surface rounded-lg transition-colors border border-hairline font-medium"
@@ -171,7 +151,7 @@ export const Navbar: React.FC = () => {
 
         {/* Small log out button for mobile */}
         <Link href="/">
-          <button onClick={logout} className="p-1.5 text-slate hover:text-ink rounded-lg border border-hairline">
+          <button aria-label="Sign out mobile" onClick={logout} className="p-1.5 text-slate hover:text-ink rounded-lg border border-hairline">
             <LogOut className="w-3.5 h-3.5" />
           </button>
         </Link>

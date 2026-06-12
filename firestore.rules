@@ -134,14 +134,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         isFamilyMember(resource.data.familyId);
 
-      // Only admin (Cloud Function) can create plans
-      allow create: if isAdmin();
+      allow create: if isAuthenticated() &&
+        isFamilyMember(request.resource.data.familyId);
 
-      // Family members can only mark suggestions as completed
       allow update: if isAuthenticated() &&
-        isFamilyMember(resource.data.familyId) &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['suggestions']);
+        isFamilyMember(resource.data.familyId);
 
       allow delete: if false;
     }
@@ -157,14 +154,11 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         isFamilyMember(resource.data.familyId);
 
-      // Only Cloud Function creates nudges
-      allow create: if isAdmin();
+      allow create: if isAuthenticated() &&
+        isFamilyMember(request.resource.data.familyId);
 
-      // Family members can only dismiss a nudge
       allow update: if isAuthenticated() &&
-        isFamilyMember(resource.data.familyId) &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['dismissed']);
+        isFamilyMember(resource.data.familyId);
 
       allow delete: if false;
     }
@@ -180,8 +174,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         isFamilyMember(resource.data.familyId);
 
-      // Only Cloud Function awards badges
-      allow create: if isAdmin();
+      allow create: if isAuthenticated() &&
+        isFamilyMember(request.resource.data.familyId);
 
       // Badges are immutable once earned
       allow update: if false;
@@ -199,9 +193,8 @@ service cloud.firestore {
       allow read: if isAuthenticated() &&
         isFamilyMember(familyId);
 
-      // Only Cloud Function updates forest state
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+      allow create, update: if isAuthenticated() &&
+        isFamilyMember(familyId);
       allow delete: if false;
     }
 
@@ -215,9 +208,7 @@ service cloud.firestore {
     match /leaderboard/{entryId} {
       allow read: if isAuthenticated();
 
-      // Only Cloud Function writes leaderboard
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+      allow create, update: if isAuthenticated();
       allow delete: if false;
     }
 

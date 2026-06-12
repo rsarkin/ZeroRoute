@@ -38,7 +38,11 @@ export const DashboardStats: React.FC = () => {
     <div className="space-y-6">
       {/* Active Nudge Alert */}
       {isNudgeActive && (
-        <div className="flex items-start justify-between p-4 border rounded-lg bg-card-tint-peach border-brand-orange text-brand-orange-deep animate-pulse">
+        <div 
+          role="alert" 
+          aria-live="polite" 
+          className="flex items-start justify-between p-4 border rounded-lg bg-card-tint-peach border-brand-orange text-brand-orange-deep animate-pulse"
+        >
           <div className="flex gap-3">
             <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5" />
             <div>
@@ -48,6 +52,7 @@ export const DashboardStats: React.FC = () => {
           </div>
           <button 
             onClick={dismissNudge} 
+            aria-label="Dismiss alert"
             className="text-xs font-bold hover:underline cursor-pointer ml-4 text-brand-orange-deep"
           >
             Dismiss

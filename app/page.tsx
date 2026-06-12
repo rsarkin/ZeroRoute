@@ -8,12 +8,15 @@ import { TreePine, Zap, Award, Users, Trophy, Leaf, Sprout } from 'lucide-react'
 
 export default function Home() {
   const router = useRouter();
-  const { loginAs, user } = useAuth();
+  const { loginWithGoogle, user } = useAuth();
 
-  const handleLogin = () => {
-    // Log in as Father by default and redirect to dashboard
-    loginAs('Father');
-    router.push('/dashboard');
+  const handleLogin = async () => {
+    try {
+      await loginWithGoogle();
+      router.push('/onboarding');
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -64,7 +67,7 @@ export default function Home() {
               onClick={handleLogin}
               className="notion-btn-primary text-base font-semibold px-8 py-3 bg-primary hover:bg-primary-pressed shadow-md"
             >
-              Get Started (Google Login Demo)
+              Get Started
             </button>
             <a
               href="#learn-more"

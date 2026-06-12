@@ -93,3 +93,16 @@ export interface LeaderboardEntry {
   hasEvBadge: boolean;
   weekRank?: number;
 }
+
+export interface MilestoneTree {
+  id: string;
+  stage: 'seed' | 'sapling' | 'tree' | 'forest';
+  plantedAt: string; // ISO string
+}
+
+export interface ForestState {
+  familyId: string;
+  trees: MilestoneTree[];
+  totalCarbonSaved: number;
+  lastUpdated: string;
+}

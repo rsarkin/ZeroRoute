@@ -25,23 +25,7 @@ export function evaluateNudges(
   // 1. Calculate current week total emissions so far
   const currentWeekCo2 = currentLogs.reduce((sum, log) => sum + log.co2Kg, 0);
 
-  // 2. Check Rule: AC Overuse (AC hours logged > 6 hours/day average this week)
-  const acLogs = currentLogs.filter(log => log.subType === 'ac');
-  const totalAcHours = acLogs.reduce((sum, log) => sum + log.value, 0);
-  const averageAcHoursPerDay = dayIndex > 0 ? totalAcHours / dayIndex : 0;
-
-  if (averageAcHoursPerDay > 6) {
-    return {
-      id: `nudge_ac_${Date.now()}`,
-      familyId,
-      type: 'acOveruse',
-      message: `Your AC usage is high! Averaging ${averageAcHoursPerDay.toFixed(1)} hours/day this week. Try setting a timer or raising the temperature to 24°C.`,
-      triggeredAt: now.toISOString(),
-      dismissed: false
-    };
-  }
-
-  // 3. Check Rule: Bill Spike (current month electricity cost/kwh is > 20% higher than last month)
+  // 2. Check Rule: Bill Spike (current month electricity cost/kwh is > 20% higher than last month)
   // Let's filter for electricity logs (both cost and kwh)
   const currentElec = currentLogs
     .filter(log => log.subType === 'electricity_kwh' || log.subType === 'electricity_cost')
@@ -66,6 +50,22 @@ export function evaluateNudges(
       familyId,
       type: 'billSpike',
       message: `Noticeable spike in electricity usage! Your current logging is 20%+ higher than last month's baseline. Consider switching to LED bulbs.`,
+      triggeredAt: now.toISOString(),
+      dismissed: false
+    };
+  }
+
+  // 3. Check Rule: AC Overuse (AC hours logged > 6 hours/day average this week)
+  const acLogs = currentLogs.filter(log => log.subType === 'ac');
+  const totalAcHours = acLogs.reduce((sum, log) => sum + log.value, 0);
+  const averageAcHoursPerDay = dayIndex > 0 ? totalAcHours / dayIndex : 0;
+
+  if (averageAcHoursPerDay > 6) {
+    return {
+      id: `nudge_ac_${Date.now()}`,
+      familyId,
+      type: 'acOveruse',
+      message: `Your AC usage is high! Averaging ${averageAcHoursPerDay.toFixed(1)} hours/day this week. Try setting a timer or raising the temperature to 24°C.`,
       triggeredAt: now.toISOString(),
       dismissed: false
     };

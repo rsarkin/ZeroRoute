@@ -1,93 +1,82 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { auth, isFirebaseEnabled } from '../lib/firebase';
+import { GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import type { User as FirebaseUser } from 'firebase/auth';
 
 export interface User {
   uid: string;
-  email: string;
-  displayName: string;
-  role: string; // e.g., 'Father', 'Mother', 'Son', 'Daughter'
-  ageGroup: 'adult' | 'teen' | 'child';
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  loginAs: (roleName: string) => void;
-  logout: () => void;
+  loginWithGoogle: () => Promise<void>;
+  loginAs: (roleName: string) => void; // Kept for backward compatibility in UI until fully wired
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-export const mockUsers: Record<string, User> = {
-  Father: {
-    uid: 'mem_father_123',
-    email: 'hrushikesh@zeroroute.in',
-    displayName: 'Hrushikesh',
-    role: 'Father',
-    ageGroup: 'adult',
-  },
-  Mother: {
-    uid: 'mem_mother_123',
-    email: 'nakshatra@zeroroute.in',
-    displayName: 'Nakshatra',
-    role: 'Mother',
-    ageGroup: 'adult',
-  },
-  Son: {
-    uid: 'mem_son_123',
-    email: 'shreyas@zeroroute.in',
-    displayName: 'Shreyas',
-    role: 'Son',
-    ageGroup: 'teen',
-  },
-  Daughter: {
-    uid: 'mem_daughter_123',
-    email: 'anika@zeroroute.in',
-    displayName: 'Anika',
-    role: 'Daughter',
-    ageGroup: 'child',
-  },
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load from local storage if available
-    const savedUser = localStorage.getItem('zr_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        setUser(null);
-      }
+    if (isFirebaseEnabled() && auth) {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser: FirebaseUser | null) => {
+        if (firebaseUser) {
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName,
+            photoURL: firebaseUser.photoURL,
+          });
+        } else {
+          setUser(null);
+        }
+        setLoading(false);
+      });
+      return () => unsubscribe();
     } else {
-      // Default to Father on first load
-      setUser(mockUsers['Father']);
-      localStorage.setItem('zr_user', JSON.stringify(mockUsers['Father']));
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
-  const loginAs = (roleName: string) => {
-    const selectedUser = mockUsers[roleName] || null;
-    setUser(selectedUser);
-    if (selectedUser) {
-      localStorage.setItem('zr_user', JSON.stringify(selectedUser));
-    } else {
-      localStorage.removeItem('zr_user');
+  const loginWithGoogle = async () => {
+    if (isFirebaseEnabled() && auth) {
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (error) {
+        console.error("Error signing in with Google", error);
+      }
     }
   };
 
-  const logout = () => {
+  const loginAs = (roleName: string) => {
+    // For local fallback compatibility if Firebase isn't fully set up yet
+    setUser({
+      uid: `mock_${roleName.toLowerCase()}`,
+      email: `${roleName.toLowerCase()}@zeroroute.local`,
+      displayName: roleName,
+      photoURL: null,
+    });
+  };
+
+  const logout = async () => {
+    if (isFirebaseEnabled() && auth) {
+      await firebaseSignOut(auth);
+    }
     setUser(null);
-    localStorage.removeItem('zr_user');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, loginAs, logout }}>
+    <AuthContext.Provider value={{ user, loading, loginWithGoogle, loginAs, logout }}>
       {children}
     </AuthContext.Provider>
   );
@@ -100,3 +89,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

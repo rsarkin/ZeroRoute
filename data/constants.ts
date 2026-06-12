@@ -77,5 +77,11 @@ export function getNeighborhoodName(id: string): string {
     const found = city.neighborhoods.find(n => n.id === id);
     if (found) return `${found.name}, ${city.name}`;
   }
+  if (id && id.startsWith('custom_')) {
+    const parts = id.replace('custom_', '').split('_');
+    const neighborhood = parts[0] ? decodeURIComponent(parts[0]) : '';
+    const city = parts[1] ? decodeURIComponent(parts[1]) : '';
+    return `${neighborhood}, ${city}`;
+  }
   return "Unknown Neighborhood";
 }
