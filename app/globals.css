@@ -1,26 +1,306 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1a1a1a;
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  
+  --primary: #5645d4;
+  --primary-pressed: #4534b3;
+  --primary-deep: #3a2a99;
+  
+  --brand-navy: #0a1530;
+  --brand-navy-deep: #070f24;
+  --brand-navy-mid: #1a2a52;
+  --brand-olive: #556b2f;
+  
+  --link-blue: #0075de;
+  
+  --brand-orange: #dd5b00;
+  --brand-orange-deep: #793400;
+  --brand-pink: #ff64c8;
+  --brand-pink-deep: #a02e6d;
+  --brand-purple: #7b3ff2;
+  --brand-purple-300: #d6b6f6;
+  --brand-purple-800: #391c57;
+  --brand-teal: #2a9d99;
+  --brand-green: #1aae39;
+  --brand-yellow: #f5d75e;
+  --brand-brown: #523410;
+  
+  --card-tint-peach: #ffe8d4;
+  --card-tint-rose: #fde0ec;
+  --card-tint-mint: #d9f3e1;
+  --card-tint-lavender: #e6e0f5;
+  --card-tint-sky: #dcecfa;
+  --card-tint-yellow: #fef7d6;
+  --card-tint-yellow-bold: #f9e79f;
+  --card-tint-cream: #f8f5e8;
+  --card-tint-gray: #f0eeec;
+  
+  --canvas: #ffffff;
+  --sand: #fef7d6;
+  --forest-green: #163824;
+  --surface: #f6f5f4;
+  --surface-soft: #fafaf9;
+  --hairline: #e5e3df;
+  --hairline-soft: #ede9e4;
+  --hairline-strong: #c8c4be;
+  
+  --ink-deep: #000000;
+  --ink: #1a1a1a;
+  --charcoal: #37352f;
+  --slate: #5d5b54;
+  --steel: #787671;
+  --stone: #a4a097;
+  --muted: #bbb8b1;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --font-sans: var(--font-sans);
+  --font-chido: var(--font-chido);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-primary: var(--primary);
+  --color-brand-olive: var(--brand-olive);
+  --color-primary-pressed: var(--primary-pressed);
+  --color-primary-deep: var(--primary-deep);
+  
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-navy-deep: var(--brand-navy-deep);
+  --color-brand-navy-mid: var(--brand-navy-mid);
+  
+  --color-link-blue: var(--link-blue);
+  
+  --color-brand-orange: var(--brand-orange);
+  --color-brand-orange-deep: var(--brand-orange-deep);
+  --color-brand-pink: var(--brand-pink);
+  --color-brand-pink-deep: var(--brand-pink-deep);
+  --color-brand-purple: var(--brand-purple);
+  --color-brand-purple-300: var(--brand-purple-300);
+  --color-brand-purple-800: var(--brand-purple-800);
+  --color-brand-teal: var(--brand-teal);
+  --color-brand-green: var(--brand-green);
+  --color-brand-yellow: var(--brand-yellow);
+  --color-brand-brown: var(--brand-brown);
+  
+  --color-card-tint-peach: var(--card-tint-peach);
+  --color-card-tint-rose: var(--card-tint-rose);
+  --color-card-tint-mint: var(--card-tint-mint);
+  --color-card-tint-lavender: var(--card-tint-lavender);
+  --color-card-tint-sky: var(--card-tint-sky);
+  --color-card-tint-yellow: var(--card-tint-yellow);
+  --color-card-tint-yellow-bold: var(--card-tint-yellow-bold);
+  --color-card-tint-cream: var(--card-tint-cream);
+  --color-card-tint-gray: var(--card-tint-gray);
+  
+  --color-canvas: var(--canvas);
+  --color-sand: var(--sand);
+  --color-forest-green: var(--forest-green);
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-hairline: var(--hairline);
+  --color-hairline-soft: var(--hairline-soft);
+  --color-hairline-strong: var(--hairline-strong);
+  
+  --color-ink-deep: var(--ink-deep);
+  --color-ink: var(--ink);
+  --color-charcoal: var(--charcoal);
+  --color-slate: var(--slate);
+  --color-steel: var(--steel);
+  --color-stone: var(--stone);
+  --color-muted: var(--muted);
+  
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 20px;
+  --radius-xxxl: 24px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--sand);
+  color: var(--ink);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Custom classes matching DESIGN-notion.md for components */
+.notion-btn-primary {
+  background-color: var(--primary);
+  color: var(--canvas);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.notion-btn-primary:hover, .notion-btn-primary:active {
+  background-color: var(--primary-pressed);
+}
+
+.notion-btn-dark {
+  background-color: var(--ink-deep);
+  color: var(--canvas);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.notion-btn-secondary {
+  background-color: transparent;
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.notion-btn-secondary:hover {
+  background-color: var(--surface);
+}
+
+.notion-btn-on-dark {
+  background-color: var(--canvas);
+  color: var(--ink);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: opacity 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+
+.notion-btn-on-dark:hover {
+  opacity: 0.9;
+}
+
+.notion-btn-secondary-on-dark {
+  background-color: transparent;
+  color: var(--canvas);
+  border: 1px solid var(--on-dark-muted);
+  border-radius: var(--radius-md);
+  padding: 10px 18px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.notion-btn-secondary-on-dark:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.notion-btn-ghost {
+  background-color: transparent;
+  color: var(--ink);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.notion-btn-ghost:hover {
+  background-color: var(--surface);
+}
+
+.notion-card {
+  background-color: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.notion-card-interactive {
+  background-color: var(--canvas);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.notion-card-interactive:hover {
+  box-shadow: rgba(15, 15, 15, 0.08) 0px 4px 12px 0px;
+  border-color: var(--hairline-strong);
+}
+
+.notion-input {
+  background-color: var(--canvas);
+  color: var(--ink);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  height: 44px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.notion-input:focus {
+  border: 2px solid var(--primary);
+}
+
+/* Custom toast animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes progressShrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-progress-shrink {
+  animation: progressShrink 6s linear forwards;
+}
+
