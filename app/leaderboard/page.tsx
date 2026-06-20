@@ -42,53 +42,64 @@ export default function LeaderboardPage() {
       </div>
 
       {/* Top 3 Podium (Visual) */}
-      <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto pt-6 pb-2">
-        {leaderboard.slice(0, 3).map((entry, index) => {
-          // Determine place styling
-          let podiumClass = 'bg-white border-hairline';
-          let medalIcon = '🥉';
-          let heightClass = 'h-32';
-          let textClass = 'text-slate-700';
+      <div className="flex items-end justify-center gap-2 md:gap-4 max-w-2xl mx-auto pt-8 pb-4 px-2 border-b-4 border-slate-200 rounded-b-sm">
+        {(() => {
+          const top3 = leaderboard.slice(0, 3);
+          const podiumOrder = [];
+          if (top3[1]) podiumOrder.push({ ...top3[1], originalIndex: 1 }); // 2nd Place
+          if (top3[0]) podiumOrder.push({ ...top3[0], originalIndex: 0 }); // 1st Place
+          if (top3[2]) podiumOrder.push({ ...top3[2], originalIndex: 2 }); // 3rd Place
 
-          if (index === 0) {
-            podiumClass = 'bg-amber-50 border-amber-300 ring-2 ring-amber-200';
-            medalIcon = '🥇';
-            heightClass = 'h-40';
-            textClass = 'text-amber-800';
-          } else if (index === 1) {
-            podiumClass = 'bg-slate-50 border-slate-300';
-            medalIcon = '🥈';
-            heightClass = 'h-36';
-            textClass = 'text-slate-800';
-          }
+          return podiumOrder.map((entry) => {
+            const index = entry.originalIndex;
+            let podiumClass = 'bg-orange-50/30 border-orange-200 shadow-sm';
+            let medalIcon = '🥉';
+            let heightClass = 'h-36 md:h-40';
+            let textClass = 'text-orange-900';
+            let badgeClass = 'bg-orange-100 text-orange-800 border-orange-200';
 
-          const isCurrentFamily = familyProfile && entry.familyId === familyProfile.id;
+            if (index === 0) {
+              podiumClass = 'bg-gradient-to-b from-amber-50 to-amber-100/40 border-amber-300 shadow-md z-10 ring-1 ring-amber-200';
+              medalIcon = '🥇';
+              heightClass = 'h-40 md:h-48';
+              textClass = 'text-amber-900';
+              badgeClass = 'bg-amber-100 text-amber-800 border-amber-300';
+            } else if (index === 1) {
+              podiumClass = 'bg-slate-50 border-slate-300 shadow-sm';
+              medalIcon = '🥈';
+              heightClass = 'h-36 md:h-40';
+              textClass = 'text-slate-800';
+              badgeClass = 'bg-slate-200 text-slate-700 border-slate-300';
+            }
 
-          return (
-            <div 
-              key={entry.familyId}
-              className={`flex flex-col justify-end items-center rounded-xl p-4 border text-center transition-all ${podiumClass} ${heightClass} ${
-                isCurrentFamily ? 'border-primary ring-2 ring-primary/20' : ''
-              }`}
-            >
-              <div className="text-2xl mb-1">{medalIcon}</div>
-              <div className="font-bold text-sm truncate max-w-full text-slate-900">
-                {entry.familyName}
+            const isCurrentFamily = familyProfile && entry.familyId === familyProfile.id;
+
+            return (
+              <div 
+                key={entry.familyId}
+                className={`flex-1 flex flex-col justify-end items-center rounded-t-xl p-2 md:p-4 border border-b-0 text-center transition-all ${podiumClass} ${heightClass} ${
+                  isCurrentFamily ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : ''
+                }`}
+              >
+                <div className="text-3xl md:text-4xl mb-1 md:mb-2 drop-shadow-sm filter">{medalIcon}</div>
+                <div className="font-extrabold text-xs md:text-sm truncate w-full text-slate-900 px-1">
+                  {entry.familyName}
+                </div>
+                <div className={`text-xs md:text-sm font-black ${textClass} mt-1 md:mt-1.5 bg-white/70 px-2 py-0.5 rounded-full shadow-xs`}>
+                  -{entry.reductionPercent}%
+                </div>
+                <div className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-1.5 font-medium">
+                  {entry.co2Saved} kg saved
+                </div>
+                {entry.hasEvBadge && (
+                  <span className={`text-[10px] md:text-xs px-1.5 py-0.5 rounded-md mt-2 font-bold flex items-center gap-1 border ${badgeClass}`}>
+                    <Zap className="w-3 h-3 fill-current" /> <span className="hidden md:inline">EV</span>
+                  </span>
+                )}
               </div>
-              <div className={`text-xs font-bold ${textClass} mt-1`}>
-                -{entry.reductionPercent}%
-              </div>
-              <div className="text-xxs text-slate-400 mt-0.5">
-                {entry.co2Saved} kg saved
-              </div>
-              {entry.hasEvBadge && (
-                <span className="text-xxs bg-sky-100 text-sky-700 px-1.5 py-0.5 rounded mt-1.5 font-bold flex items-center gap-0.5">
-                  <Zap className="w-3 h-3" /> EV
-                </span>
-              )}
-            </div>
-          );
-        })}
+            );
+          });
+        })()}
       </div>
 
       {/* Full Leaderboard Table */}
