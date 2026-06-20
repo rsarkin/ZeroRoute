@@ -3,6 +3,66 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CITIES, Neighborhood, getNeighborhoodName } from '../data/constants';
 
+export interface GoogleMapsAPI {
+  maps: {
+    Map: new (element: HTMLElement, options: Record<string, unknown>) => GoogleMapInstance;
+    Marker: new (options: Record<string, unknown>) => GoogleMarkerInstance;
+    Geocoder: new () => GoogleGeocoderInstance;
+    Animation: { DROP: unknown };
+    event: {
+      addListener: (
+        instance: unknown,
+        eventName: string,
+        handler: (e: { latLng: { lat: () => number; lng: () => number } }) => void
+      ) => void;
+      clearInstanceListeners: (instance: unknown) => void;
+    };
+    places: {
+      Autocomplete: new (
+        input: HTMLInputElement,
+        options: Record<string, unknown>
+      ) => GoogleAutocompleteInstance;
+    };
+  };
+}
+
+export interface GoogleMapInstance {
+  setCenter: (latLng: { lat: number | (() => number); lng: number | (() => number) }) => void;
+  setZoom: (zoom: number) => void;
+  panTo: (latLng: { lat: number | (() => number); lng: number | (() => number) }) => void;
+}
+
+export interface GoogleMarkerInstance {
+  setPosition: (latLng: { lat: number | (() => number); lng: number | (() => number) }) => void;
+  getPosition: () => { lat: () => number; lng: () => number } | null;
+  setMap: (map: GoogleMapInstance | null) => void;
+  addListener: (eventName: string, handler: () => void) => void;
+}
+
+export interface GoogleGeocoderInstance {
+  geocode: (
+    request: { location: { lat: number; lng: number } },
+    callback: (
+      results: Array<{
+        formatted_address?: string;
+        address_components: Array<{ types: string[]; short_name?: string; long_name: string }>;
+      }>,
+      status: string
+    ) => void
+  ) => void;
+}
+
+export interface GoogleAutocompleteInstance {
+  addListener: (eventName: string, handler: () => void) => void;
+  getPlace: () => {
+    geometry?: {
+      location: { lat: () => number; lng: () => number };
+    };
+    name?: string;
+    address_components?: Array<{ types: string[]; long_name: string; short_name?: string }>;
+  };
+}
+
 interface MockMapPickerProps {
   selectedCityId: string;
   selectedNeighbourhoodId: string;
@@ -22,8 +82,8 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
   const [loadError, setLoadError] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [googleMap, setGoogleMap] = useState<unknown>(null);
-  const [googleMarker, setGoogleMarker] = useState<unknown>(null);
+  const [googleMap, setGoogleMap] = useState<GoogleMapInstance | null>(null);
+  const [googleMarker, setGoogleMarker] = useState<GoogleMarkerInstance | null>(null);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -55,9 +115,7 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
   const handleLocationSelect = (lat: number, lng: number, placeName?: string) => {
     if (!(window as unknown as { google: unknown }).google) return;
 
-    const { Geocoder } = (
-      window as unknown as { google: { maps: { Geocoder: new () => unknown } } }
-    ).google.maps;
+    const { Geocoder } = (window as unknown as { google: GoogleMapsAPI }).google.maps;
     const geocoder = new Geocoder();
     geocoder.geocode(
       { location: { lat, lng } },
@@ -126,16 +184,7 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
     )
       return;
 
-    const google = (
-      window as unknown as {
-        google: {
-          maps: {
-            Map: new (el: unknown, opt: unknown) => unknown;
-            Marker: new (opt: unknown) => unknown;
-          };
-        };
-      }
-    ).google;
+    const google = (window as unknown as { google: GoogleMapsAPI }).google;
 
     // Default Centers
     const center =

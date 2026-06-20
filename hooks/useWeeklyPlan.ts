@@ -5,7 +5,7 @@ import { WeeklyPlan } from '../types';
 export interface UseWeeklyPlanResult {
   currentPlan: WeeklyPlan | null;
   allPlans: WeeklyPlan[];
-  markActionCompleted: (memberId: string, actionId: string) => void;
+  markActionCompleted: (memberId: string) => void;
   markSuggestionCompleted: (suggestionId: string) => void;
   regeneratePlan: () => void;
 }
