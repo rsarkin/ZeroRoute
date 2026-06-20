@@ -1,13 +1,10 @@
 'use client';
 
-import React from 'react';
 import { useFamily } from '../../providers/FamilyProvider';
 import { BADGE_DEFINITIONS, BadgeDefinition } from '../../data/badgeDefinitions';
-import { 
-  Award, 
-  Trees, 
-  ShieldAlert, 
-  Sparkles, 
+import {
+  Award,
+  Trees,
   CheckCircle2,
   Sprout,
   Target,
@@ -18,10 +15,10 @@ import {
   Leaf,
   Trophy,
   Lightbulb,
-  Users
+  Users,
 } from 'lucide-react';
 
-const renderBadgeIcon = (badgeKey: string, className = "w-6 h-6") => {
+const renderBadgeIcon = (badgeKey: string, className = 'w-6 h-6') => {
   switch (badgeKey) {
     case 'first_log':
       return <Sprout className={className} />;
@@ -53,40 +50,85 @@ const renderBadgeIcon = (badgeKey: string, className = "w-6 h-6") => {
 };
 
 export default function BadgesPage() {
-  const { badges, familyProfile } = useFamily();
+  const { badges } = useFamily();
 
   // Helper to check if a badge is earned and return its details
   const getEarnedData = (badgeKey: string) => {
-    return badges.find(b => b.badgeKey === badgeKey);
+    return badges.find((b) => b.badgeKey === badgeKey);
   };
 
   // Calculate next milestone progress
   const earnedCount = badges.length;
   let nextMilestoneTitle = 'Forest Keeper';
   let nextMilestoneDesc = 'Earn 5 achievement badges to grow your forest canopy.';
-  let currentProgress = earnedCount;
+  const currentProgress = earnedCount;
   let targetProgress = 5;
-  
+
   if (earnedCount >= 5) {
     nextMilestoneTitle = 'Forest Master';
-    nextMilestoneDesc = 'Earn 10 achievement badges to expand your forest into a sustainable sanctuary.';
+    nextMilestoneDesc =
+      'Earn 10 achievement badges to expand your forest into a sustainable sanctuary.';
     targetProgress = 10;
   }
-  
+
   const progressPercent = Math.min(100, Math.round((currentProgress / targetProgress) * 100));
 
-  const colorsMap: Record<string, { bg: string, text: string, border: string }> = {
-    emerald: { bg: 'bg-emerald-50 dark:bg-emerald-950/20', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-800/50' },
-    purple: { bg: 'bg-purple-50 dark:bg-purple-950/20', text: 'text-purple-700 dark:text-purple-400', border: 'border-purple-200 dark:border-purple-800/50' },
-    amber: { bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-800/50' },
-    sky: { bg: 'bg-sky-50 dark:bg-sky-950/20', text: 'text-sky-700 dark:text-sky-400', border: 'border-sky-200 dark:border-sky-800/50' },
-    indigo: { bg: 'bg-indigo-50 dark:bg-indigo-950/20', text: 'text-indigo-700 dark:text-indigo-400', border: 'border-indigo-200 dark:border-indigo-800/50' },
-    blue: { bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-200 dark:border-blue-800/50' },
-    green: { bg: 'bg-green-50 dark:bg-green-950/20', text: 'text-green-700 dark:text-green-400', border: 'border-green-200 dark:border-green-800/50' },
-    yellow: { bg: 'bg-yellow-50 dark:bg-yellow-950/20', text: 'text-yellow-700 dark:text-yellow-400', border: 'border-yellow-200 dark:border-yellow-800/50' },
-    teal: { bg: 'bg-teal-50 dark:bg-teal-950/20', text: 'text-teal-700 dark:text-teal-400', border: 'border-teal-200 dark:border-teal-800/50' },
-    orange: { bg: 'bg-orange-50 dark:bg-orange-950/20', text: 'text-orange-700 dark:text-orange-400', border: 'border-orange-200 dark:border-orange-800/50' },
-    rose: { bg: 'bg-rose-50 dark:bg-rose-950/20', text: 'text-rose-700 dark:text-rose-400', border: 'border-rose-200 dark:border-rose-800/50' },
+  const colorsMap: Record<string, { bg: string; text: string; border: string }> = {
+    emerald: {
+      bg: 'bg-emerald-50 dark:bg-emerald-950/20',
+      text: 'text-emerald-700 dark:text-emerald-400',
+      border: 'border-emerald-200 dark:border-emerald-800/50',
+    },
+    purple: {
+      bg: 'bg-purple-50 dark:bg-purple-950/20',
+      text: 'text-purple-700 dark:text-purple-400',
+      border: 'border-purple-200 dark:border-purple-800/50',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-950/20',
+      text: 'text-amber-700 dark:text-amber-400',
+      border: 'border-amber-200 dark:border-amber-800/50',
+    },
+    sky: {
+      bg: 'bg-sky-50 dark:bg-sky-950/20',
+      text: 'text-sky-700 dark:text-sky-400',
+      border: 'border-sky-200 dark:border-sky-800/50',
+    },
+    indigo: {
+      bg: 'bg-indigo-50 dark:bg-indigo-950/20',
+      text: 'text-indigo-700 dark:text-indigo-400',
+      border: 'border-indigo-200 dark:border-indigo-800/50',
+    },
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-950/20',
+      text: 'text-blue-700 dark:text-blue-400',
+      border: 'border-blue-200 dark:border-blue-800/50',
+    },
+    green: {
+      bg: 'bg-green-50 dark:bg-green-950/20',
+      text: 'text-green-700 dark:text-green-400',
+      border: 'border-green-200 dark:border-green-800/50',
+    },
+    yellow: {
+      bg: 'bg-yellow-50 dark:bg-yellow-950/20',
+      text: 'text-yellow-700 dark:text-yellow-400',
+      border: 'border-yellow-200 dark:border-yellow-800/50',
+    },
+    teal: {
+      bg: 'bg-teal-50 dark:bg-teal-950/20',
+      text: 'text-teal-700 dark:text-teal-400',
+      border: 'border-teal-200 dark:border-teal-800/50',
+    },
+    orange: {
+      bg: 'bg-orange-50 dark:bg-orange-950/20',
+      text: 'text-orange-700 dark:text-orange-400',
+      border: 'border-orange-200 dark:border-orange-800/50',
+    },
+    rose: {
+      bg: 'bg-rose-50 dark:bg-rose-950/20',
+      text: 'text-rose-700 dark:text-rose-400',
+      border: 'border-rose-200 dark:border-rose-800/50',
+    },
   };
 
   return (
@@ -109,16 +151,22 @@ export default function BadgesPage() {
       {/* Next Milestone Card */}
       <div className="bg-forest-green text-[#ebdcb9] border border-emerald-950 p-6 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-sm">
         <div className="space-y-1">
-          <span className="text-xxs font-bold uppercase tracking-widest text-emerald-300">Next Milestone</span>
+          <span className="text-xxs font-bold uppercase tracking-widest text-emerald-300">
+            Next Milestone
+          </span>
           <h2 className="text-lg font-bold text-white flex items-center gap-1.5">
             <Trees className="w-5 h-5 text-[#ebdcb9]" />
             <span>{nextMilestoneTitle}</span>
           </h2>
           <p className="text-xs text-emerald-200/80 max-w-md">
-            {nextMilestoneDesc} (Currently: <span className="font-semibold text-white">{currentProgress} / {targetProgress}</span>)
+            {nextMilestoneDesc} (Currently:{' '}
+            <span className="font-semibold text-white">
+              {currentProgress} / {targetProgress}
+            </span>
+            )
           </p>
         </div>
-        
+
         {/* Progress Bar & Percentage */}
         <div className="w-full md:w-48 shrink-0 space-y-1.5">
           <div className="flex justify-between text-xs font-semibold">
@@ -126,8 +174,8 @@ export default function BadgesPage() {
             <span className="text-white">{progressPercent}%</span>
           </div>
           <div className="w-full bg-emerald-950 h-2.5 rounded-full overflow-hidden border border-emerald-900">
-            <div 
-              className="bg-[#ebdcb9] h-full rounded-full transition-all duration-500" 
+            <div
+              className="bg-[#ebdcb9] h-full rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -141,18 +189,20 @@ export default function BadgesPage() {
           const colorClasses = colorsMap[badge.color] || colorsMap.emerald;
 
           return (
-            <div 
+            <div
               key={badge.key}
               className={`p-6 border rounded-xl flex flex-col justify-between space-y-4 transition-all ${
-                earned 
-                  ? `${colorClasses.bg} ${colorClasses.border}` 
+                earned
+                  ? `${colorClasses.bg} ${colorClasses.border}`
                   : 'bg-white border-hairline opacity-50 grayscale shadow-none'
               }`}
             >
               <div className="space-y-3">
                 <div className="flex justify-between items-start">
-                  <div className={`p-2.5 rounded-lg border ${colorClasses.border} ${colorClasses.text} bg-white dark:bg-slate-900 shadow-2xs`}>
-                    {renderBadgeIcon(badge.key, "w-6 h-6")}
+                  <div
+                    className={`p-2.5 rounded-lg border ${colorClasses.border} ${colorClasses.text} bg-white dark:bg-slate-900 shadow-2xs`}
+                  >
+                    {renderBadgeIcon(badge.key, 'w-6 h-6')}
                   </div>
                   {earned && (
                     <span className="text-xxs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">

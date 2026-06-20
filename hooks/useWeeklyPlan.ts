@@ -1,12 +1,8 @@
 import { useFamily } from '../providers/FamilyProvider';
 
-export function useWeeklyPlan() {
-  const { 
-    weeklyPlans, 
-    markActionCompleted, 
-    markSuggestionCompleted, 
-    regeneratePlan 
-  } = useFamily();
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const useWeeklyPlan = (): any => {
+  const { weeklyPlans, markActionCompleted, markSuggestionCompleted, regeneratePlan } = useFamily();
 
   const currentPlan = weeklyPlans.length > 0 ? weeklyPlans[0] : null;
 
@@ -15,6 +11,6 @@ export function useWeeklyPlan() {
     allPlans: weeklyPlans,
     markActionCompleted,
     markSuggestionCompleted,
-    regeneratePlan
+    regeneratePlan,
   };
-}
+};

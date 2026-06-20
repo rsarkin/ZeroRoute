@@ -12,18 +12,18 @@ interface MockMapPickerProps {
 export const MockMapPicker: React.FC<MockMapPickerProps> = ({
   selectedCityId,
   selectedNeighbourhoodId,
-  onSelect
+  onSelect,
 }) => {
   const [activeCityId, setActiveCityId] = useState<string>(selectedCityId || CITIES[0].id);
-  const activeCity = CITIES.find(c => c.id === activeCityId) || CITIES[0];
+  const activeCity = CITIES.find((c) => c.id === activeCityId) || CITIES[0];
 
   // Google Maps JS API dynamic loader state
   const [isScriptLoaded, setIsScriptLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [googleMap, setGoogleMap] = useState<any>(null);
-  const [googleMarker, setGoogleMarker] = useState<any>(null);
+  const [googleMap, setGoogleMap] = useState<unknown>(null);
+  const [googleMarker, setGoogleMarker] = useState<unknown>(null);
 
   const googleMapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -37,14 +37,12 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       setIsScriptLoaded(true);
     };
 
-    if (script) {
-      if ((window as any).google) {
-        setIsScriptLoaded(true);
-      } else {
-        script.addEventListener('load', handleLoad);
-      }
-      return;
+    if (isScriptLoaded && !(window as unknown as { google: unknown }).google) {
+      setIsScriptLoaded(true);
+    } else {
+      script.addEventListener('load', handleLoad);
     }
+    return;
 
     script = document.createElement('script');
     script.id = scriptId;
@@ -54,69 +52,88 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
     script.addEventListener('load', handleLoad);
     script.addEventListener('error', () => setLoadError(true));
     document.head.appendChild(script);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleMapsApiKey]);
 
   const handleLocationSelect = (lat: number, lng: number, placeName?: string) => {
-    if (!(window as any).google) return;
-    const google = (window as any).google;
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ location: { lat, lng } }, (results: any, status: any) => {
-      let resolvedLocality = placeName || '';
-      let resolvedCity = '';
+    if (!(window as unknown as { google: unknown }).google) return;
 
-      if (status === 'OK' && results && results[0]) {
-        const components = results[0].address_components;
-        components.forEach((comp: any) => {
-          if (comp.types.includes('sublocality') || comp.types.includes('neighborhood')) {
-            if (!resolvedLocality) resolvedLocality = comp.long_name;
-          }
-          if (comp.types.includes('locality')) {
-            resolvedCity = comp.long_name;
-            if (!resolvedLocality) resolvedLocality = comp.long_name;
-          }
-        });
-      }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { Geocoder } = (window as unknown as { google: { maps: { Geocoder: new () => any } } })
+      .google.maps;
+    const geocoder = new Geocoder();
+    geocoder.geocode(
+      { location: { lat, lng } },
+      (
+        results: Array<{ address_components: Array<{ types: string[]; long_name: string }> }>,
+        status: string
+      ) => {
+        let resolvedLocality = placeName || '';
+        let resolvedCity = '';
 
-      // Fallbacks if geocoding yields limited results
-      resolvedCity = resolvedCity || (activeCityId === 'pune' ? 'Pune' : 'Mumbai');
-      resolvedLocality = resolvedLocality || `Area at Lat ${lat.toFixed(2)}`;
-
-      // Match against predefined cohorts or generate custom IDs
-      const rawCity = resolvedCity.toLowerCase().trim();
-      const rawLocality = resolvedLocality.trim();
-
-      const matchedCity = CITIES.find(c => c.name.toLowerCase() === rawCity || c.id === rawCity);
-      let targetCityId = '';
-      let targetNeighbourhoodId = '';
-
-      if (matchedCity) {
-        targetCityId = matchedCity.id;
-        const matchedNeighbourhood = matchedCity.neighborhoods.find(
-          n => n.name.toLowerCase() === rawLocality.toLowerCase() || n.id === rawLocality.toLowerCase()
-        );
-        if (matchedNeighbourhood) {
-          targetNeighbourhoodId = matchedNeighbourhood.id;
-        } else {
-          targetNeighbourhoodId = `custom_${encodeURIComponent(rawLocality)}_${encodeURIComponent(matchedCity.name)}`;
+        if (status === 'OK' && results && results[0]) {
+          const components = results[0].address_components;
+          components.forEach((comp: { types: string[]; long_name: string }) => {
+            if (comp.types.includes('sublocality') || comp.types.includes('neighborhood')) {
+              if (!resolvedLocality) resolvedLocality = comp.long_name;
+            }
+            if (comp.types.includes('locality')) {
+              resolvedCity = comp.long_name;
+              if (!resolvedLocality) resolvedLocality = comp.long_name;
+            }
+          });
         }
-      } else {
-        targetCityId = `custom_${encodeURIComponent(rawCity)}`;
-        targetNeighbourhoodId = `custom_${encodeURIComponent(rawLocality)}_${encodeURIComponent(resolvedCity)}`;
-      }
 
-      onSelect(targetCityId, targetNeighbourhoodId);
-    });
+        // Fallbacks if geocoding yields limited results
+        resolvedCity = resolvedCity || (activeCityId === 'pune' ? 'Pune' : 'Mumbai');
+        resolvedLocality = resolvedLocality || `Area at Lat ${lat.toFixed(2)}`;
+
+        // Match against predefined cohorts or generate custom IDs
+        const rawCity = resolvedCity.toLowerCase().trim();
+        const rawLocality = resolvedLocality.trim();
+
+        const matchedCity = CITIES.find(
+          (c) => c.name.toLowerCase() === rawCity || c.id === rawCity
+        );
+        let targetCityId = '';
+        let targetNeighbourhoodId = '';
+
+        if (matchedCity) {
+          targetCityId = matchedCity.id;
+          const matchedNeighbourhood = matchedCity.neighborhoods.find(
+            (n) =>
+              n.name.toLowerCase() === rawLocality.toLowerCase() ||
+              n.id === rawLocality.toLowerCase()
+          );
+          if (matchedNeighbourhood) {
+            targetNeighbourhoodId = matchedNeighbourhood.id;
+          } else {
+            targetNeighbourhoodId = `custom_${encodeURIComponent(rawLocality)}_${encodeURIComponent(matchedCity.name)}`;
+          }
+        } else {
+          targetCityId = `custom_${encodeURIComponent(rawCity)}`;
+          targetNeighbourhoodId = `custom_${encodeURIComponent(rawLocality)}_${encodeURIComponent(resolvedCity)}`;
+        }
+
+        onSelect(targetCityId, targetNeighbourhoodId);
+      }
+    );
   };
 
   // Setup Google Map instance
   useEffect(() => {
-    if (!isScriptLoaded || !mapContainerRef.current || !(window as any).google) return;
-    const google = (window as any).google;
+    if (
+      !isScriptLoaded ||
+      !mapContainerRef.current ||
+      !(window as unknown as { google: unknown }).google
+    )
+      return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const google = (window as unknown as { google: any }).google;
 
     // Default Centers
-    const center = selectedCityId === 'pune'
-      ? { lat: 18.5204, lng: 73.8567 }
-      : { lat: 19.0760, lng: 72.8777 };
+    const center =
+      selectedCityId === 'pune' ? { lat: 18.5204, lng: 73.8567 } : { lat: 19.076, lng: 72.8777 };
 
     const mapInstance = new google.maps.Map(mapContainerRef.current, {
       center,
@@ -127,38 +144,42 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
         {
           featureType: 'water',
           elementType: 'geometry',
-          stylers: [{ color: '#e9e9e9' }, { lightness: 17 }]
+          stylers: [{ color: '#e9e9e9' }, { lightness: 17 }],
         },
         {
           featureType: 'landscape',
           elementType: 'geometry',
-          stylers: [{ color: '#f5f5f5' }, { lightness: 20 }]
+          stylers: [{ color: '#f5f5f5' }, { lightness: 20 }],
         },
         {
           featureType: 'road.highway',
           elementType: 'geometry.fill',
-          stylers: [{ color: '#ffffff' }, { lightness: 17 }]
-        }
-      ]
+          stylers: [{ color: '#ffffff' }, { lightness: 17 }],
+        },
+      ],
     });
 
     const markerInstance = new google.maps.Marker({
       position: center,
       map: mapInstance,
       draggable: true,
-      animation: google.maps.Animation.DROP
+      animation: google.maps.Animation.DROP,
     });
 
     setGoogleMap(mapInstance);
     setGoogleMarker(markerInstance);
 
     // Map Click Handler
-    mapInstance.addListener('click', (e: any) => {
-      if (e.latLng) {
-        markerInstance.setPosition(e.latLng);
-        handleLocationSelect(e.latLng.lat(), e.latLng.lng());
+    google.maps.event.addListener(
+      mapInstance,
+      'click',
+      (e: { latLng: { lat: () => number; lng: () => number } }) => {
+        if (e.latLng) {
+          markerInstance.setPosition(e.latLng);
+          handleLocationSelect(e.latLng.lat(), e.latLng.lng());
+        }
       }
-    });
+    );
 
     // Marker Drag Handler
     markerInstance.addListener('dragend', () => {
@@ -172,7 +193,7 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
     if (searchInputRef.current) {
       const autocomplete = new google.maps.places.Autocomplete(searchInputRef.current, {
         types: ['geocode'],
-        componentRestrictions: { country: 'in' }
+        componentRestrictions: { country: 'in' },
       });
 
       autocomplete.addListener('place_changed', () => {
@@ -182,17 +203,13 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
           mapInstance.setCenter(loc);
           mapInstance.setZoom(15);
           markerInstance.setPosition(loc);
-          
+
           let extractedNeighbourhood = '';
-          let extractedCity = '';
-          
+
           if (place.address_components) {
-            place.address_components.forEach((comp: any) => {
+            place.address_components.forEach((comp: { types: string[]; long_name: string }) => {
               if (comp.types.includes('sublocality') || comp.types.includes('neighborhood')) {
                 extractedNeighbourhood = comp.long_name;
-              }
-              if (comp.types.includes('locality')) {
-                extractedCity = comp.long_name;
               }
             });
           }
@@ -203,24 +220,26 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       });
     }
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isScriptLoaded]);
 
   // Sync Map center on city selection changes
   useEffect(() => {
-    if (googleMap && googleMarker && (window as any).google) {
-      const google = (window as any).google;
-      const center = selectedCityId === 'pune'
-        ? { lat: 18.5204, lng: 73.8567 }
-        : { lat: 19.0760, lng: 72.8777 };
-      googleMap.setCenter(center);
-      googleMap.setZoom(12);
-      googleMarker.setPosition(center);
+    if (googleMap && googleMarker && (window as unknown as { google: unknown }).google) {
+      const center =
+        selectedCityId === 'pune' ? { lat: 18.5204, lng: 73.8567 } : { lat: 19.076, lng: 72.8777 };
+      (googleMap as { setCenter: (c: unknown) => void; setZoom: (z: number) => void }).setCenter(
+        center
+      );
+      (googleMap as { setCenter: (c: unknown) => void; setZoom: (z: number) => void }).setZoom(12);
+      (googleMarker as { setPosition: (c: unknown) => void }).setPosition(center);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCityId]);
 
   const handleCityChange = (cityId: string) => {
     setActiveCityId(cityId);
-    const firstNeighbourhood = CITIES.find(c => c.id === cityId)?.neighborhoods[0];
+    const firstNeighbourhood = CITIES.find((c) => c.id === cityId)?.neighborhoods[0];
     if (firstNeighbourhood) {
       onSelect(cityId, firstNeighbourhood.id);
     }
@@ -234,9 +253,11 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6 border border-[#e5e3df] rounded-xl bg-white shadow-xs">
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Select Primary City</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Select Primary City
+            </label>
             <div className="grid grid-cols-2 gap-2">
-              {CITIES.map(city => (
+              {CITIES.map((city) => (
                 <button
                   key={city.id}
                   type="button"
@@ -255,7 +276,12 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
           </div>
 
           <div>
-            <label htmlFor="address-search" className="block text-sm font-semibold text-slate-700 mb-2">Search Location / Neighbourhood</label>
+            <label
+              htmlFor="address-search"
+              className="block text-sm font-semibold text-slate-700 mb-2"
+            >
+              Search Location / Neighbourhood
+            </label>
             <input
               ref={searchInputRef}
               id="address-search"
@@ -266,7 +292,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
           </div>
 
           <div className="pt-2 border-t border-slate-100">
-            <span className="text-xs text-slate-500 font-semibold uppercase block">Selected Locality:</span>
+            <span className="text-xs text-slate-500 font-semibold uppercase block">
+              Selected Locality:
+            </span>
             <p className="text-sm font-bold text-slate-800 mt-1">
               {getNeighborhoodName(selectedNeighbourhoodId)}
             </p>
@@ -274,8 +302,13 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
         </div>
 
         <div className="flex flex-col items-center justify-center border border-[#ede9e4] rounded-lg bg-slate-50 p-4 min-h-64">
-          <span className="text-xs font-semibold uppercase text-slate-400 mb-2 tracking-wider">Interactive Google Map</span>
-          <div ref={mapContainerRef} className="w-full aspect-square max-h-64 bg-slate-200 border border-[#e5e3df] rounded-lg overflow-hidden relative" />
+          <span className="text-xs font-semibold uppercase text-slate-400 mb-2 tracking-wider">
+            Interactive Google Map
+          </span>
+          <div
+            ref={mapContainerRef}
+            className="w-full aspect-square max-h-64 bg-slate-200 border border-[#e5e3df] rounded-lg overflow-hidden relative"
+          />
           <p className="text-xs text-slate-500 mt-3 text-center">
             Drag the pin or click on the map to pinpoint your exact neighborhood.
           </p>
@@ -290,7 +323,7 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-2">Select Your City</label>
         <div className="grid grid-cols-2 gap-2 mb-4">
-          {CITIES.map(city => (
+          {CITIES.map((city) => (
             <button
               key={city.id}
               type="button"
@@ -307,7 +340,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
           ))}
         </div>
 
-        <label className="block text-sm font-semibold text-slate-700 mb-2">Select Your Neighborhood</label>
+        <label className="block text-sm font-semibold text-slate-700 mb-2">
+          Select Your Neighborhood
+        </label>
         <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
           {activeCity.neighborhoods.map((n: Neighborhood) => (
             <button
@@ -323,7 +358,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
             >
               <span>{n.name}</span>
               {selectedNeighbourhoodId === n.id && (
-                <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">Selected</span>
+                <span className="text-xs bg-primary text-white px-2 py-0.5 rounded-full font-bold">
+                  Selected
+                </span>
               )}
             </button>
           ))}
@@ -331,7 +368,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       </div>
 
       <div className="flex flex-col items-center justify-center border border-[#ede9e4] rounded-lg bg-slate-50 p-4 min-h-64">
-        <span className="text-xs font-semibold uppercase text-slate-400 mb-2 tracking-wider">Interactive Neighborhood Map</span>
+        <span className="text-xs font-semibold uppercase text-slate-400 mb-2 tracking-wider">
+          Interactive Neighborhood Map
+        </span>
         <div className="w-full aspect-square max-h-64 bg-slate-100 border border-[#e5e3df] rounded-lg overflow-hidden relative">
           <svg viewBox="0 0 200 200" className="w-full h-full text-slate-300">
             <defs>
@@ -345,17 +384,25 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
             <path d="M 80 0 Q 110 90 60 200" fill="none" stroke="#e2e8f0" strokeWidth="8" />
             <path d="M 0 140 H 200" fill="none" stroke="#e2e8f0" strokeWidth="6" />
 
-            <path d="M -10 100 C 50 120 150 70 210 90 L 210 210 L -10 210 Z" fill="#bae6fd" opacity="0.4" />
+            <path
+              d="M -10 100 C 50 120 150 70 210 90 L 210 210 L -10 210 Z"
+              fill="#bae6fd"
+              opacity="0.4"
+            />
 
             <circle cx="150" cy="110" r="25" fill="#bbf7d0" opacity="0.6" />
             <circle cx="40" cy="40" r="15" fill="#bbf7d0" opacity="0.6" />
 
             {activeCity.neighborhoods.map((n, idx) => {
-              const x = 40 + (idx * 45) % 130;
-              const y = 50 + (idx * 55) % 120;
+              const x = 40 + ((idx * 45) % 130);
+              const y = 50 + ((idx * 55) % 120);
               const isSelected = selectedNeighbourhoodId === n.id;
               return (
-                <g key={n.id} className="cursor-pointer" onClick={() => onSelect(activeCityId, n.id)}>
+                <g
+                  key={n.id}
+                  className="cursor-pointer"
+                  onClick={() => onSelect(activeCityId, n.id)}
+                >
                   <circle
                     cx={x}
                     cy={y}
@@ -392,7 +439,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
           </svg>
         </div>
         <p className="text-xs text-slate-500 mt-3 text-center">
-          Showing local grid for <span className="font-semibold text-slate-800">{activeCity.name}</span>. Click on map markers or list to update location.
+          Showing local grid for{' '}
+          <span className="font-semibold text-slate-800">{activeCity.name}</span>. Click on map
+          markers or list to update location.
         </p>
       </div>
     </div>

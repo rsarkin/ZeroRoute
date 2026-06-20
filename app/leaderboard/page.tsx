@@ -1,15 +1,14 @@
 'use client';
 
-import React from 'react';
 import { useFamily } from '../../providers/FamilyProvider';
 import { getNeighborhoodName } from '../../data/constants';
-import { Trophy, HelpCircle, Users, Zap, Award } from 'lucide-react';
+import { Trophy, HelpCircle, Zap } from 'lucide-react';
 
 export default function LeaderboardPage() {
   const { leaderboard, familyProfile } = useFamily();
 
-  const neighborhoodName = familyProfile 
-    ? getNeighborhoodName(familyProfile.neighbourhoodId) 
+  const neighborhoodName = familyProfile
+    ? getNeighborhoodName(familyProfile.neighbourhoodId)
     : 'Bandra, Mumbai';
 
   return (
@@ -34,9 +33,10 @@ export default function LeaderboardPage() {
         <div>
           <span className="font-semibold text-slate-800">How is this calculated?</span>
           <p className="mt-1 leading-relaxed">
-            Rankings are determined by the percentage of carbon emissions reduced compared to your family's own baseline. 
-            This makes it fair for families of all sizes! Families owning Electric Vehicles receive a 3% bonus. 
-            Only the family name is displayed to maintain privacy.
+            Rankings are determined by the percentage of carbon emissions reduced compared to your
+            family's own baseline. This makes it fair for families of all sizes! Families owning
+            Electric Vehicles receive a 3% bonus. Only the family name is displayed to maintain
+            privacy.
           </p>
         </div>
       </div>
@@ -59,7 +59,8 @@ export default function LeaderboardPage() {
             let badgeClass = 'bg-orange-100 text-orange-800 border-orange-200';
 
             if (index === 0) {
-              podiumClass = 'bg-gradient-to-b from-amber-50 to-amber-100/40 border-amber-300 shadow-md z-10 ring-1 ring-amber-200';
+              podiumClass =
+                'bg-gradient-to-b from-amber-50 to-amber-100/40 border-amber-300 shadow-md z-10 ring-1 ring-amber-200';
               medalIcon = '🥇';
               heightClass = 'h-40 md:h-48';
               textClass = 'text-amber-900';
@@ -75,25 +76,32 @@ export default function LeaderboardPage() {
             const isCurrentFamily = familyProfile && entry.familyId === familyProfile.id;
 
             return (
-              <div 
+              <div
                 key={entry.familyId}
                 className={`flex-1 flex flex-col justify-end items-center rounded-t-xl p-2 md:p-4 border border-b-0 text-center transition-all ${podiumClass} ${heightClass} ${
                   isCurrentFamily ? 'border-primary ring-2 ring-primary/30 bg-primary/5' : ''
                 }`}
               >
-                <div className="text-3xl md:text-4xl mb-1 md:mb-2 drop-shadow-sm filter">{medalIcon}</div>
+                <div className="text-3xl md:text-4xl mb-1 md:mb-2 drop-shadow-sm filter">
+                  {medalIcon}
+                </div>
                 <div className="font-extrabold text-xs md:text-sm truncate w-full text-slate-900 px-1">
                   {entry.familyName}
                 </div>
-                <div className={`text-xs md:text-sm font-black ${textClass} mt-1 md:mt-1.5 bg-white/70 px-2 py-0.5 rounded-full shadow-xs`}>
+                <div
+                  className={`text-xs md:text-sm font-black ${textClass} mt-1 md:mt-1.5 bg-white/70 px-2 py-0.5 rounded-full shadow-xs`}
+                >
                   -{entry.reductionPercent}%
                 </div>
                 <div className="text-[10px] md:text-xs text-slate-500 mt-1 md:mt-1.5 font-medium">
                   {entry.co2Saved} kg saved
                 </div>
                 {entry.hasEvBadge && (
-                  <span className={`text-[10px] md:text-xs px-1.5 py-0.5 rounded-md mt-2 font-bold flex items-center gap-1 border ${badgeClass}`}>
-                    <Zap className="w-3 h-3 fill-current" /> <span className="hidden md:inline">EV</span>
+                  <span
+                    className={`text-[10px] md:text-xs px-1.5 py-0.5 rounded-md mt-2 font-bold flex items-center gap-1 border ${badgeClass}`}
+                  >
+                    <Zap className="w-3 h-3 fill-current" />{' '}
+                    <span className="hidden md:inline">EV</span>
                   </span>
                 )}
               </div>
@@ -121,20 +129,20 @@ export default function LeaderboardPage() {
                 const rank = idx + 1;
 
                 return (
-                  <tr 
-                    key={entry.familyId} 
+                  <tr
+                    key={entry.familyId}
                     className={`hover:bg-slate-50/50 ${
                       isCurrentFamily ? 'bg-primary/5 font-semibold text-primary-deep' : ''
                     }`}
                   >
-                    <td className="py-4 pl-4 font-bold text-slate-600">
-                      #{rank}
-                    </td>
+                    <td className="py-4 pl-4 font-bold text-slate-600">#{rank}</td>
                     <td className="py-4">
                       <div className="flex items-center gap-2">
                         <span>{entry.familyName}</span>
                         {isCurrentFamily && (
-                          <span className="text-xxs bg-primary text-white px-2 py-0.5 rounded-full font-bold">You</span>
+                          <span className="text-xxs bg-primary text-white px-2 py-0.5 rounded-full font-bold">
+                            You
+                          </span>
                         )}
                       </div>
                     </td>
@@ -147,9 +155,7 @@ export default function LeaderboardPage() {
                         <span className="text-slate-300">-</span>
                       )}
                     </td>
-                    <td className="py-4 text-right text-slate-600">
-                      {entry.co2Saved} kg
-                    </td>
+                    <td className="py-4 text-right text-slate-600">{entry.co2Saved} kg</td>
                     <td className="py-4 text-right font-bold text-emerald-600">
                       -{entry.reductionPercent}%
                     </td>

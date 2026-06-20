@@ -1,12 +1,13 @@
 'use client';
 
-import React from 'react';
 import { useWeeklyPlan } from '../../hooks/useWeeklyPlan';
 import { useFamily } from '../../providers/FamilyProvider';
-import { CheckSquare, Square, RefreshCcw, HelpCircle, Award, Target, MessageSquare, CalendarPlus } from 'lucide-react';
+import { CheckSquare, Square, RefreshCcw, Target, MessageSquare, CalendarPlus } from 'lucide-react';
+import { MemberAction, Suggestion } from '../../types';
 
 export default function WeeklyPlanPage() {
-  const { currentPlan, markActionCompleted, markSuggestionCompleted, regeneratePlan } = useWeeklyPlan();
+  const { currentPlan, markActionCompleted, markSuggestionCompleted, regeneratePlan } =
+    useWeeklyPlan();
   const { members } = useFamily();
 
   if (!currentPlan) {
@@ -18,14 +19,14 @@ export default function WeeklyPlanPage() {
   }
 
   // Group members for easy role lookups
-  const getMemberName = (id: string) => members.find(m => m.id === id)?.name || 'Member';
-  const getMemberRole = (id: string) => members.find(m => m.id === id)?.role || '';
+
+  const getMemberRole = (id: string) => members.find((m) => m.id === id)?.role || '';
 
   const getGoogleCalendarUrl = (actionName: string, weekStart: string) => {
     try {
       const baseDate = new Date(weekStart);
       if (isNaN(baseDate.getTime())) return '';
-      
+
       const formatDate = (date: Date) => {
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -39,10 +40,12 @@ export default function WeeklyPlanPage() {
       const endDateStr = formatDate(endDate);
 
       const title = encodeURIComponent(`ZeroRoute: ${actionName}`);
-      const details = encodeURIComponent(`Assigned carbon reduction micro-action for the week of ${weekStart}. Let's cooperate to lower our carbon footprint!`);
-      
+      const details = encodeURIComponent(
+        `Assigned carbon reduction micro-action for the week of ${weekStart}. Let's cooperate to lower our carbon footprint!`
+      );
+
       return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&details=${details}&dates=${startDateStr}/${endDateStr}`;
-    } catch (e) {
+    } catch {
       return '';
     }
   };
@@ -51,16 +54,29 @@ export default function WeeklyPlanPage() {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return `Week of ${dateString}`;
-      
-      const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+      const monthNames = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+      ];
       const month = monthNames[date.getMonth()];
       const year = date.getFullYear();
       const dateNum = date.getDate();
-      
+
       const weekNum = Math.ceil(dateNum / 7);
-      const ordinals = ["", "1st", "2nd", "3rd", "4th", "5th"];
+      const ordinals = ['', '1st', '2nd', '3rd', '4th', '5th'];
       const ordinal = ordinals[weekNum] || `${weekNum}th`;
-      
+
       return `${ordinal} week ${month} ${year}`;
     } catch {
       return `Week of ${dateString}`;
@@ -72,7 +88,9 @@ export default function WeeklyPlanPage() {
       {/* Page Header */}
       <div className="flex justify-between items-center border-b border-hairline pb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink-deep">Weekly Carbon Action Plan</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-ink-deep">
+            Weekly Carbon Action Plan
+          </h1>
           <p className="text-sm text-slate mt-1">{formatWeekDisplay(currentPlan.weekStart)}</p>
         </div>
         <button
@@ -89,7 +107,9 @@ export default function WeeklyPlanPage() {
           <Target className="w-6 h-6" />
         </div>
         <div>
-          <span className="text-xxs font-bold uppercase tracking-wider text-forest-green bg-forest-green/10 px-2 py-0.5 rounded">Shared Family Goal</span>
+          <span className="text-xxs font-bold uppercase tracking-wider text-forest-green bg-forest-green/10 px-2 py-0.5 rounded">
+            Shared Family Goal
+          </span>
           <h2 className="text-xl font-bold text-forest-green mt-2">{currentPlan.sharedGoal}</h2>
           <p className="text-sm text-slate-700 mt-2 leading-relaxed">
             Cooperate as a household to meet this target by the end of the week.
@@ -99,18 +119,19 @@ export default function WeeklyPlanPage() {
 
       {/* Main Content Grid: Member Tasks and Reasoning */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        
         {/* Left Column (Span 2): Member Tasks */}
         <div className="md:col-span-2 space-y-6">
-          <h3 className="text-base font-bold text-ink-deep border-b border-hairline-soft pb-2">Individual Micro-Actions</h3>
+          <h3 className="text-base font-bold text-ink-deep border-b border-hairline-soft pb-2">
+            Individual Micro-Actions
+          </h3>
           <div className="space-y-4">
-            {currentPlan.memberActions.map((action) => (
-              <div 
+            {currentPlan.memberActions.map((action: MemberAction) => (
+              <div
                 key={action.memberId}
                 onClick={() => markActionCompleted(action.memberId)}
                 className={`p-4 border rounded-xl flex items-start justify-between cursor-pointer transition-all ${
-                  action.completed 
-                    ? 'bg-slate-50/70 border-slate-200 opacity-75' 
+                  action.completed
+                    ? 'bg-slate-50/70 border-slate-200 opacity-75'
                     : 'bg-white border-hairline hover:border-slate-400'
                 }`}
               >
@@ -123,8 +144,12 @@ export default function WeeklyPlanPage() {
                     )}
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 font-semibold">{action.memberName} ({getMemberRole(action.memberId)})</span>
-                    <p className={`text-sm mt-1 font-medium ${action.completed ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                    <span className="text-xs text-slate-500 font-semibold">
+                      {action.memberName} ({getMemberRole(action.memberId)})
+                    </span>
+                    <p
+                      className={`text-sm mt-1 font-medium ${action.completed ? 'line-through text-slate-400' : 'text-slate-800'}`}
+                    >
                       {action.action}
                     </p>
                   </div>
@@ -145,7 +170,9 @@ export default function WeeklyPlanPage() {
                     </a>
                   )}
                   {action.completed && (
-                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">Done</span>
+                    <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                      Done
+                    </span>
                   )}
                 </div>
               </div>
@@ -160,7 +187,9 @@ export default function WeeklyPlanPage() {
             <span>AI Reasoning</span>
           </h3>
           <div className="p-4 bg-white border border-hairline rounded-xl space-y-3 shadow-2xs">
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">Analysis Snapshot</div>
+            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+              Analysis Snapshot
+            </div>
             <div className="space-y-2">
               <div>
                 <span className="text-xs font-medium text-slate-500">Emission Hotspot:</span>
@@ -174,23 +203,25 @@ export default function WeeklyPlanPage() {
             </p>
           </div>
         </div>
-
       </div>
 
       {/* Suggested Improvements Section */}
       <div className="space-y-4 pt-4 border-t border-hairline">
         <div>
           <h3 className="text-base font-bold text-ink-deep">Suggested Home Upgrades</h3>
-          <p className="text-xs text-slate-500 mt-1">Complete these special tasks to unlock achievement badges and plant trees in your forest!</p>
+          <p className="text-xs text-slate-500 mt-1">
+            Complete these special tasks to unlock achievement badges and plant trees in your
+            forest!
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {currentPlan.suggestions.map((sug) => (
-            <div 
-              key={sug.id} 
+          {currentPlan.suggestions.map((sug: Suggestion) => (
+            <div
+              key={sug.id}
               className={`p-5 border rounded-xl flex flex-col justify-between space-y-4 transition-all ${
-                sug.completed 
-                  ? 'bg-slate-50/70 border-slate-200 opacity-60' 
+                sug.completed
+                  ? 'bg-slate-50/70 border-slate-200 opacity-60'
                   : 'bg-card-tint-mint border-forest-green/20 shadow-2xs'
               }`}
             >
@@ -199,7 +230,9 @@ export default function WeeklyPlanPage() {
                   <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded">
                     +{sug.points} pts
                   </span>
-                  {sug.completed && <span className="text-xs font-bold text-emerald-600">✓ Completed</span>}
+                  {sug.completed && (
+                    <span className="text-xs font-bold text-emerald-600">✓ Completed</span>
+                  )}
                 </div>
                 <p className="text-sm font-semibold text-slate-800 leading-snug">{sug.text}</p>
               </div>

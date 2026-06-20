@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -11,16 +11,21 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Check if Firebase configuration is provided
-export const isFirebaseEnabled = () => {
-  return typeof window !== 'undefined' && 
-         !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY && 
-         !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+/**
+ * Checks if Firebase configuration is provided.
+ * @returns {boolean} True if enabled.
+ */
+export const isFirebaseEnabled = (): boolean => {
+  return (
+    typeof window !== 'undefined' &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+    !!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  );
 };
 
 let app;
-let auth: any = null;
-let db: any = null;
+let auth: Auth = null as unknown as Auth;
+let db: Firestore = null as unknown as Firestore;
 
 if (isFirebaseEnabled()) {
   try {

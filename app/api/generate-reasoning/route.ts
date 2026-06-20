@@ -3,54 +3,56 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // Simple in-memory rate limiting map
 // Maps IP address to request count and reset timestamp
-const rateLimitMap = new Map<string, { count: number, resetTime: number }>();
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 const RATE_LIMIT_MAX = 5; // max 5 requests
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // per 1 minute
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = rateLimitMap.get(ip);
-  
+
   if (!record || now > record.resetTime) {
     // Start new window
     rateLimitMap.set(ip, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
     return true;
   }
-  
+
   if (record.count >= RATE_LIMIT_MAX) {
     return false; // Rate limit exceeded
   }
-  
+
   record.count += 1;
   return true;
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request): Promise<Response> {
   try {
     // 1. Basic Rate Limiting
     const ip = request.headers.get('x-forwarded-for') || 'unknown-ip';
     if (!checkRateLimit(ip)) {
       console.warn(`Rate limit exceeded for IP: ${ip}`);
       return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
+        { error: 'Too many requests. Please try again later.' },
         { status: 429 }
       );
     }
 
     const body = await request.json();
-    const { 
-      familyName, 
-      hotspotCategory, 
-      totalCo2, 
-      totalEnergyCo2, 
+    const {
+      familyName,
+      hotspotCategory,
+      totalCo2,
+      totalEnergyCo2,
       totalTransportCo2,
-      logsSummary 
+      logsSummary,
     } = body;
 
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey || apiKey === "your-gemini-api-key") {
-      console.warn("GEMINI_API_KEY is not configured or is using the placeholder. Falling back to template reasoning.");
-      return NextResponse.json({ reasoning: "" });
+    if (!apiKey || apiKey === 'your-gemini-api-key') {
+      console.warn(
+        'GEMINI_API_KEY is not configured or is using the placeholder. Falling back to template reasoning.'
+      );
+      return NextResponse.json({ reasoning: '' });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -75,8 +77,8 @@ Keep the tone warm, motivating, and collaborative. Do not use markdown bold/ital
     const reasoning = result.response.text().trim();
 
     return NextResponse.json({ reasoning });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating AI reasoning:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
 }

@@ -1,14 +1,19 @@
 /**
  * Provides relatable equivalents for given CO2 values.
  * For example, converting kg CO2 saved into "smartphones charged" or "trees planted".
+ * @param {number} co2Kg The amount of CO2 saved in kg.
+ * @returns {Object} The impact equivalents.
  */
-
-export function getImpactEquivalents(co2Kg: number) {
+export function getImpactEquivalents(co2Kg: number): {
+  smartphones: number;
+  trees: number;
+  kmsDriven: number;
+} {
   if (co2Kg === 0) {
     return {
       smartphones: 0,
       trees: 0,
-      kmsDriven: 0
+      kmsDriven: 0,
     };
   }
 
@@ -20,6 +25,6 @@ export function getImpactEquivalents(co2Kg: number) {
   return {
     smartphones: Math.round(co2Kg * 122),
     trees: Number((co2Kg / 21).toFixed(2)),
-    kmsDriven: Math.round(co2Kg * 4)
+    kmsDriven: Math.round(co2Kg * 4),
   };
 }

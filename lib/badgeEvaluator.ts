@@ -12,35 +12,44 @@ export const BADGES = [
   'zero_waste',
   'top_10_percent',
   'tree_planter',
-  'early_bird'
+  'early_bird',
 ] as const;
 
+/**
+ * Evaluates which badges a family has earned based on their logs and plans.
+ * @param {EmissionLog[]} logs The list of emission logs.
+ * @param {WeeklyPlan[]} pastPlans The list of past weekly plans.
+ * @param {FamilyProfile} _profile The family profile.
+ * @returns {string[]} An array of earned badge keys.
+ */
 export function evaluateBadges(
   logs: EmissionLog[],
   pastPlans: WeeklyPlan[],
-  profile: FamilyProfile
+  _profile: FamilyProfile
 ): string[] {
   const earned: string[] = [];
-  
+
   if (logs.length > 0) earned.push('first_log');
-  
+
   // goal_getter: at least one plan fully completed
-  if (pastPlans.some(p => p.suggestions.every(s => s.completed) && p.suggestions.length > 0)) {
+  if (pastPlans.some((p) => p.suggestions.every((s) => s.completed) && p.suggestions.length > 0)) {
     earned.push('goal_getter');
   }
-  
+
   // ev_pioneer: at least 5 EV trips
-  const evTrips = logs.filter(l => l.subType === 'car_ev');
+  const evTrips = logs.filter((l) => l.subType === 'car_ev');
   if (evTrips.length >= 5) earned.push('ev_pioneer');
 
   // public_transit: at least 5 public transit logs
-  const transitLogs = logs.filter(l => l.subType === 'bus' || l.subType === 'metro_train' || l.subType === 'train');
+  const transitLogs = logs.filter(
+    (l) => l.subType === 'bus' || l.subType === 'metro_train' || l.subType === 'train'
+  );
   if (transitLogs.length >= 5) earned.push('public_transit');
 
   // energy_saver: 5 consecutive days of low energy... we mock logic for 5 energy logs
-  const energyLogs = logs.filter(l => l.category === 'energy');
+  const energyLogs = logs.filter((l) => l.category === 'energy');
   if (energyLogs.length >= 5) earned.push('energy_saver');
-  
+
   // streak logic
   if (logs.length >= 3) earned.push('streak_3');
   if (logs.length >= 5) earned.push('streak_5');

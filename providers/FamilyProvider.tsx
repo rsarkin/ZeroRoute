@@ -1,36 +1,37 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { FamilyProfile, FamilyMember, Vehicle, EmissionLog, WeeklyPlan, NudgeAlert, Badge, LeaderboardEntry } from '../types';
+import {
+  FamilyProfile,
+  FamilyMember,
+  Vehicle,
+  EmissionLog,
+  WeeklyPlan,
+  NudgeAlert,
+  Badge,
+  LeaderboardEntry,
+} from '../types';
 import { calculateEmissions } from '../lib/emissionCalculator';
 import { generateWeeklyPlan } from '../lib/scoringEngine';
 import { evaluateNudges } from '../lib/nudgeEngine';
 import { BADGE_DEFINITIONS } from '../data/badgeDefinitions';
 import { db, auth, isFirebaseEnabled } from '../lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDocs, 
-  query, 
-  where, 
-  writeBatch 
-} from 'firebase/firestore';
-import { 
-  X, 
-  Sprout, 
-  Target, 
-  Flame, 
-  Zap, 
-  Bus, 
-  Snowflake, 
-  Leaf, 
-  Trophy, 
-  Trees, 
-  Lightbulb, 
-  Users, 
-  Award 
+import { collection, doc, setDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import {
+  X,
+  Sprout,
+  Target,
+  Flame,
+  Zap,
+  Bus,
+  Snowflake,
+  Leaf,
+  Trophy,
+  Trees,
+  Lightbulb,
+  Users,
+  Award,
 } from 'lucide-react';
 
 interface FamilyContextType {
@@ -42,7 +43,14 @@ interface FamilyContextType {
   badges: Badge[];
   nudgeAlert: NudgeAlert | null;
   leaderboard: LeaderboardEntry[];
-  setupFamily: (name: string, cityId: string, neighbourhoodId: string, goalPercent: number, memberList: { name: string; ageGroup: 'child' | 'teen' | 'adult'; role: string }[], vehicleList: { type: 'petrol' | 'diesel' | 'cng' | 'ev'; label: string }[]) => void;
+  setupFamily: (
+    name: string,
+    cityId: string,
+    neighbourhoodId: string,
+    goalPercent: number,
+    memberList: { name: string; ageGroup: 'child' | 'teen' | 'adult'; role: string }[],
+    vehicleList: { type: 'petrol' | 'diesel' | 'cng' | 'ev'; label: string }[]
+  ) => void;
   addLog: (log: Omit<EmissionLog, 'id' | 'co2Kg' | 'familyId'>) => void;
   markSuggestionCompleted: (suggestionId: string) => void;
   markActionCompleted: (memberId: string) => void;
@@ -66,14 +74,44 @@ const defaultProfile: FamilyProfile = {
 };
 
 const defaultMembers: FamilyMember[] = [
-  { id: 'mem_father_123', familyId: DEFAULT_FAMILY_ID, name: 'Hrushikesh', ageGroup: 'adult', role: 'Father' },
-  { id: 'mem_mother_123', familyId: DEFAULT_FAMILY_ID, name: 'Nakshatra', ageGroup: 'adult', role: 'Mother' },
-  { id: 'mem_son_123', familyId: DEFAULT_FAMILY_ID, name: 'Shreyas', ageGroup: 'teen', role: 'Son' },
-  { id: 'mem_daughter_123', familyId: DEFAULT_FAMILY_ID, name: 'Anika', ageGroup: 'child', role: 'Daughter' },
+  {
+    id: 'mem_father_123',
+    familyId: DEFAULT_FAMILY_ID,
+    name: 'Hrushikesh',
+    ageGroup: 'adult',
+    role: 'Father',
+  },
+  {
+    id: 'mem_mother_123',
+    familyId: DEFAULT_FAMILY_ID,
+    name: 'Nakshatra',
+    ageGroup: 'adult',
+    role: 'Mother',
+  },
+  {
+    id: 'mem_son_123',
+    familyId: DEFAULT_FAMILY_ID,
+    name: 'Shreyas',
+    ageGroup: 'teen',
+    role: 'Son',
+  },
+  {
+    id: 'mem_daughter_123',
+    familyId: DEFAULT_FAMILY_ID,
+    name: 'Anika',
+    ageGroup: 'child',
+    role: 'Daughter',
+  },
 ];
 
 const defaultVehicles: Vehicle[] = [
-  { id: 'veh_1', familyId: DEFAULT_FAMILY_ID, type: 'petrol', label: 'SUV (Creta)', hasEvBadge: false },
+  {
+    id: 'veh_1',
+    familyId: DEFAULT_FAMILY_ID,
+    type: 'petrol',
+    label: 'SUV (Creta)',
+    hasEvBadge: false,
+  },
   { id: 'veh_2', familyId: DEFAULT_FAMILY_ID, type: 'ev', label: 'Ather 450X', hasEvBadge: true },
 ];
 
@@ -85,10 +123,10 @@ const generateMockLogsForMembers = (
 ): EmissionLog[] => {
   const logs: EmissionLog[] = [];
   const startOffset = 28; // 4 weeks ago
-  
-  const adults = membersList.filter(m => m.ageGroup === 'adult');
-  const teens = membersList.filter(m => m.ageGroup === 'teen');
-  const children = membersList.filter(m => m.ageGroup === 'child');
+
+  const adults = membersList.filter((m) => m.ageGroup === 'adult');
+  const teens = membersList.filter((m) => m.ageGroup === 'teen');
+  const children = membersList.filter((m) => m.ageGroup === 'child');
 
   const primaryVehicle = vehiclesList.length > 0 ? vehiclesList[0].type : 'petrol';
   const secondaryVehicle = vehiclesList.length > 1 ? vehiclesList[1].type : 'walk';
@@ -97,7 +135,7 @@ const generateMockLogsForMembers = (
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     // 1. AC Usage (Assigned to Mother / first adult)
     if (membersList.length > 0) {
       const acMember = adults[0] || membersList[0];
@@ -117,7 +155,12 @@ const generateMockLogsForMembers = (
     // 2. Car Commutes (Father / adults on weekdays)
     if (date.getDay() !== 0 && date.getDay() !== 6) {
       adults.forEach((adult, index) => {
-        const vType = index === 0 ? `car_${primaryVehicle}` : (secondaryVehicle === 'walk' ? 'metro_train' : `car_${secondaryVehicle}`);
+        const vType =
+          index === 0
+            ? `car_${primaryVehicle}`
+            : secondaryVehicle === 'walk'
+              ? 'metro_train'
+              : `car_${secondaryVehicle}`;
         logs.push({
           id: `log_car_${i}_${adult.id}`,
           familyId,
@@ -134,7 +177,7 @@ const generateMockLogsForMembers = (
 
     // 3. School runs (Teens and children on weekdays)
     if (date.getDay() !== 0 && date.getDay() !== 6) {
-      teens.forEach(teen => {
+      teens.forEach((teen) => {
         logs.push({
           id: `log_bus_${i}_${teen.id}`,
           familyId,
@@ -148,7 +191,7 @@ const generateMockLogsForMembers = (
         });
       });
 
-      children.forEach(child => {
+      children.forEach((child) => {
         logs.push({
           id: `log_run_${i}_${child.id}`,
           familyId,
@@ -169,7 +212,7 @@ const generateMockLogsForMembers = (
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayStr = yesterday.toISOString().split('T')[0];
 
-  membersList.forEach(member => {
+  membersList.forEach((member) => {
     logs.push({
       id: `log_shared_outing_${yesterdayStr}_${member.id}`,
       familyId,
@@ -198,19 +241,43 @@ const generateMockLogsForMembers = (
     });
   }
 
-  return logs.map(l => ({
+  return logs.map((l) => ({
     ...l,
-    co2Kg: calculateEmissions(l.subType, l.value)
+    co2Kg: calculateEmissions(l.subType, l.value),
   }));
 };
 
 const defaultLeaderboard: LeaderboardEntry[] = [
-  { familyId: 'fam_sharma', familyName: 'Sharma Family', neighbourhoodId: 'mum_bandra', reductionPercent: 12.5, co2Saved: 18.2, badges: ['first_log', 'cool_it'], hasEvBadge: false },
-  { familyId: 'fam_iyer', familyName: 'Iyer Family', neighbourhoodId: 'mum_bandra', reductionPercent: 16.8, co2Saved: 25.5, badges: ['first_log', 'goal_getter', 'bright_idea'], hasEvBadge: true },
-  { familyId: 'fam_patel', familyName: 'Patel Family', neighbourhoodId: 'mum_bandra', reductionPercent: 6.2, co2Saved: 8.0, badges: ['first_log'], hasEvBadge: false },
+  {
+    familyId: 'fam_sharma',
+    familyName: 'Sharma Family',
+    neighbourhoodId: 'mum_bandra',
+    reductionPercent: 12.5,
+    co2Saved: 18.2,
+    badges: ['first_log', 'cool_it'],
+    hasEvBadge: false,
+  },
+  {
+    familyId: 'fam_iyer',
+    familyName: 'Iyer Family',
+    neighbourhoodId: 'mum_bandra',
+    reductionPercent: 16.8,
+    co2Saved: 25.5,
+    badges: ['first_log', 'goal_getter', 'bright_idea'],
+    hasEvBadge: true,
+  },
+  {
+    familyId: 'fam_patel',
+    familyName: 'Patel Family',
+    neighbourhoodId: 'mum_bandra',
+    reductionPercent: 6.2,
+    co2Saved: 8.0,
+    badges: ['first_log'],
+    hasEvBadge: false,
+  },
 ];
 
-const renderBadgeToastIcon = (badgeKey: string, className = "w-6 h-6") => {
+const renderBadgeToastIcon = (badgeKey: string, className = 'w-6 h-6') => {
   switch (badgeKey) {
     case 'first_log':
       return <Sprout className={className} />;
@@ -247,55 +314,87 @@ interface BadgeToastProps {
 }
 
 const BadgeToast: React.FC<BadgeToastProps> = ({ toast, onClose }) => {
-  const badgeDef = BADGE_DEFINITIONS.find(b => b.key === toast.badgeKey);
+  const badgeDef = BADGE_DEFINITIONS.find((b) => b.key === toast.badgeKey);
   const color = badgeDef?.color || 'emerald';
 
   const colorAccentClass = (() => {
     switch (color) {
-      case 'emerald': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-      case 'purple': return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
-      case 'amber': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      case 'sky': return 'bg-sky-500/10 text-sky-400 border-sky-500/20';
-      case 'indigo': return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
-      case 'blue': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      case 'green': return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'yellow': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'teal': return 'bg-teal-500/10 text-teal-400 border-teal-500/20';
-      case 'orange': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-      case 'rose': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      default: return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'emerald':
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+      case 'purple':
+        return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+      case 'amber':
+        return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+      case 'sky':
+        return 'bg-sky-500/10 text-sky-400 border-sky-500/20';
+      case 'indigo':
+        return 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20';
+      case 'blue':
+        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      case 'green':
+        return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'yellow':
+        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      case 'teal':
+        return 'bg-teal-500/10 text-teal-400 border-teal-500/20';
+      case 'orange':
+        return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+      case 'rose':
+        return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+      default:
+        return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
     }
   })();
 
   const progressBarColorClass = (() => {
     switch (color) {
-      case 'emerald': return 'bg-emerald-500';
-      case 'purple': return 'bg-purple-500';
-      case 'amber': return 'bg-amber-400';
-      case 'sky': return 'bg-sky-400';
-      case 'indigo': return 'bg-indigo-500';
-      case 'blue': return 'bg-blue-500';
-      case 'green': return 'bg-green-500';
-      case 'yellow': return 'bg-yellow-400';
-      case 'teal': return 'bg-teal-500';
-      case 'orange': return 'bg-orange-500';
-      case 'rose': return 'bg-rose-500';
-      default: return 'bg-emerald-500';
+      case 'emerald':
+        return 'bg-emerald-500';
+      case 'purple':
+        return 'bg-purple-500';
+      case 'amber':
+        return 'bg-amber-400';
+      case 'sky':
+        return 'bg-sky-400';
+      case 'indigo':
+        return 'bg-indigo-500';
+      case 'blue':
+        return 'bg-blue-500';
+      case 'green':
+        return 'bg-green-500';
+      case 'yellow':
+        return 'bg-yellow-400';
+      case 'teal':
+        return 'bg-teal-500';
+      case 'orange':
+        return 'bg-orange-500';
+      case 'rose':
+        return 'bg-rose-500';
+      default:
+        return 'bg-emerald-500';
     }
   })();
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] max-w-sm w-[calc(100vw-3rem)] md:w-96 bg-forest-green border border-emerald-800 rounded-xl shadow-2xl overflow-hidden animate-slide-in-right pointer-events-auto">
       <div className="p-4 flex items-start gap-4">
-        <div className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center border ${colorAccentClass}`}>
-          {renderBadgeToastIcon(toast.badgeKey, "w-6 h-6")}
+        <div
+          className={`flex-shrink-0 w-12 h-12 rounded-lg flex items-center justify-center border ${colorAccentClass}`}
+        >
+          {renderBadgeToastIcon(toast.badgeKey, 'w-6 h-6')}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">New Achievement unlocked!</p>
+          <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">
+            New Achievement unlocked!
+          </p>
           <h4 className="text-sm md:text-base font-bold text-yellow-100 mt-0.5">{toast.title}</h4>
           <p className="text-xs text-zinc-300 mt-1 leading-relaxed">{toast.description}</p>
         </div>
-        <button onClick={onClose} className="text-zinc-400 hover:text-white transition-colors p-1" aria-label="Close notification">
+        <button
+          onClick={onClose}
+          className="text-zinc-400 hover:text-white transition-colors p-1"
+          aria-label="Close notification"
+        >
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -313,9 +412,13 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [badges, setBadges] = useState<Badge[]>([]);
   const [nudgeAlert, setNudgeAlert] = useState<NudgeAlert | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
-  const [activeToast, setActiveToast] = useState<{ badgeKey: string; title: string; description: string } | null>(null);
+  const [activeToast, setActiveToast] = useState<{
+    badgeKey: string;
+    title: string;
+    description: string;
+  } | null>(null);
 
-  const writeDoc = async (col: string, docId: string, data: any) => {
+  const writeDoc = async (col: string, docId: string, data: unknown) => {
     if (isFirebaseEnabled() && db) {
       try {
         await setDoc(doc(db, col, docId), data);
@@ -325,10 +428,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const triggerBadgeNotification = (badgeKey: string, familyIdToUse?: string) => {
+  const triggerBadgeNotification = (badgeKey: string) => {
     if (typeof window === 'undefined') return;
 
-    const badgeDef = BADGE_DEFINITIONS.find(b => b.key === badgeKey);
+    const badgeDef = BADGE_DEFINITIONS.find((b) => b.key === badgeKey);
     const title = badgeDef ? badgeDef.title : 'New Badge';
     const description = badgeDef ? badgeDef.description : 'You earned a new achievement!';
 
@@ -339,7 +442,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           body: `Congratulations! Your family unlocked the "${title}" badge: ${description}`,
         });
       } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then(permission => {
+        Notification.requestPermission().then((permission) => {
           if (permission === 'granted') {
             new Notification('🏆 Achievement Unlocked!', {
               body: `Congratulations! Your family unlocked the "${title}" badge: ${description}`,
@@ -353,32 +456,32 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setActiveToast({
       badgeKey,
       title,
-      description
+      description,
     });
   };
 
   const updateAndSaveBadges = (currentBadgesList: Badge[], familyIdToUse?: string): Badge[] => {
-    let finalBadges = [...currentBadgesList];
+    const finalBadges = [...currentBadgesList];
     const fid = familyIdToUse || familyProfile?.id || '';
 
     // Check Forest Keeper Badge (earned 5 or more badges)
-    if (finalBadges.length >= 5 && !finalBadges.some(b => b.badgeKey === 'forest_keeper')) {
+    if (finalBadges.length >= 5 && !finalBadges.some((b) => b.badgeKey === 'forest_keeper')) {
       const forestKeeperBadge: Badge = {
         id: `badge_forest_${Date.now()}`,
         familyId: fid,
         badgeKey: 'forest_keeper',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       finalBadges.push(forestKeeperBadge);
-      triggerBadgeNotification('forest_keeper', fid);
+      triggerBadgeNotification('forest_keeper');
     }
 
     setBadges(finalBadges);
     localStorage.setItem('zr_badges', JSON.stringify(finalBadges));
 
     if (isFirebaseEnabled() && db) {
-      finalBadges.forEach(b => {
+      finalBadges.forEach((b) => {
         writeDoc('badges', b.id, b);
       });
     }
@@ -398,7 +501,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     // Request permission for push notifications
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+    if (
+      typeof window !== 'undefined' &&
+      'Notification' in window &&
+      Notification.permission === 'default'
+    ) {
       Notification.requestPermission();
     }
 
@@ -417,37 +524,61 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setFamilyProfile(profile);
 
             // Load members
-            const membersSnap = await getDocs(query(collection(db, 'familyMembers'), where('familyId', '==', profile.id)));
-            const membersList = membersSnap.docs.map(d => ({ id: d.id, ...d.data() })) as FamilyMember[];
+            const membersSnap = await getDocs(
+              query(collection(db, 'familyMembers'), where('familyId', '==', profile.id))
+            );
+            const membersList = membersSnap.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            })) as FamilyMember[];
             setMembers(membersList);
 
             // Load vehicles
-            const vehiclesSnap = await getDocs(query(collection(db, 'vehicles'), where('familyId', '==', profile.id)));
-            const vehiclesList = vehiclesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Vehicle[];
+            const vehiclesSnap = await getDocs(
+              query(collection(db, 'vehicles'), where('familyId', '==', profile.id))
+            );
+            const vehiclesList = vehiclesSnap.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            })) as Vehicle[];
             setVehicles(vehiclesList);
 
             // Load logs (sort by date desc)
-            const logsSnap = await getDocs(query(collection(db, 'emissionLogs'), where('familyId', '==', profile.id)));
-            const logsList = logsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as EmissionLog[];
-            const sortedLogs = logsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const logsSnap = await getDocs(
+              query(collection(db, 'emissionLogs'), where('familyId', '==', profile.id))
+            );
+            const logsList = logsSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as EmissionLog[];
+            const sortedLogs = logsList.sort(
+              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            );
             setEmissionLogs(sortedLogs);
 
             // Load weekly plans
-            const plansSnap = await getDocs(query(collection(db, 'weeklyPlans'), where('familyId', '==', profile.id)));
-            const plansList = plansSnap.docs.map(d => ({ id: d.id, ...d.data() })) as WeeklyPlan[];
-            const sortedPlans = plansList.sort((a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime());
+            const plansSnap = await getDocs(
+              query(collection(db, 'weeklyPlans'), where('familyId', '==', profile.id))
+            );
+            const plansList = plansSnap.docs.map((d) => ({
+              id: d.id,
+              ...d.data(),
+            })) as WeeklyPlan[];
+            const sortedPlans = plansList.sort(
+              (a, b) => new Date(b.weekStart).getTime() - new Date(a.weekStart).getTime()
+            );
             setWeeklyPlans(sortedPlans);
 
             // Load badges
-            const badgesSnap = await getDocs(query(collection(db, 'badges'), where('familyId', '==', profile.id)));
-            const badgesList = badgesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Badge[];
+            const badgesSnap = await getDocs(
+              query(collection(db, 'badges'), where('familyId', '==', profile.id))
+            );
+            const badgesList = badgesSnap.docs.map((d) => ({ id: d.id, ...d.data() })) as Badge[];
             setBadges(badgesList);
 
             // Load leaderboard
             const lbSnap = await getDocs(collection(db, 'leaderboard'));
-            const lbList = lbSnap.docs.map(d => d.data()) as LeaderboardEntry[];
-            const sortedLb = lbList.sort((a, b) => b.reductionPercent - a.reductionPercent)
-                                   .map((e, idx) => ({ ...e, weekRank: idx + 1 }));
+            const lbList = lbSnap.docs.map((d) => d.data()) as LeaderboardEntry[];
+            const sortedLb = lbList
+              .sort((a, b) => b.reductionPercent - a.reductionPercent)
+              .map((e, idx) => ({ ...e, weekRank: idx + 1 }));
             setLeaderboard(sortedLb);
 
             // Save locally for offline cache speed
@@ -463,29 +594,29 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const newFid = DEFAULT_FAMILY_ID;
             const updatedProfile = {
               ...defaultProfile,
-              creatorUid: currentFirebaseUser.uid
+              creatorUid: currentFirebaseUser.uid,
             };
 
             const batch = writeBatch(db);
             batch.set(doc(db, 'families', newFid), updatedProfile);
 
             // Map Father (primary creator user) to request.auth.uid + '_' + familyId for security rule compliance
-            const updatedMembers = defaultMembers.map(m => {
+            const updatedMembers = defaultMembers.map((m) => {
               if (m.role === 'Father') {
                 return {
                   ...m,
-                  id: `${currentFirebaseUser.uid}_${newFid}`
+                  id: `${currentFirebaseUser.uid}_${newFid}`,
                 };
               }
               return m;
             });
 
-            updatedMembers.forEach(m => {
+            updatedMembers.forEach((m) => {
               batch.set(doc(db, 'familyMembers', m.id), m);
             });
 
             const logs = generateMockLogsForMembers(newFid, updatedMembers, defaultVehicles);
-            logs.forEach(l => {
+            logs.forEach((l) => {
               batch.set(doc(db, 'emissionLogs', l.id), l);
             });
 
@@ -504,23 +635,38 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               treeUnlocked: true,
             };
             const initialBadges = [firstBadge, evBadge];
-            initialBadges.forEach(b => {
+            initialBadges.forEach((b) => {
               batch.set(doc(db, 'badges', b.id), b);
             });
 
             const MondayOfThisWeek = new Date();
-            MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7));
+            MondayOfThisWeek.setDate(
+              MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7)
+            );
             const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
-            const lastWeekLogs = logs.filter(log => {
+            const lastWeekLogs = logs.filter((log) => {
               const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
               return diffDays > 7 && diffDays <= 14;
             });
 
-            const initialPlan = generateWeeklyPlan(newFid, weekStartStr, lastWeekLogs, updatedMembers, defaultVehicles);
+            const initialPlan = generateWeeklyPlan(
+              newFid,
+              weekStartStr,
+              lastWeekLogs,
+              updatedMembers,
+              defaultVehicles
+            );
             batch.set(doc(db, 'weeklyPlans', initialPlan.id), initialPlan);
 
-            const initialLeaderboard = updateLeaderboardScore(newFid, updatedProfile.name, updatedProfile.neighbourhoodId, logs, initialBadges, defaultVehicles);
-            initialLeaderboard.forEach(entry => {
+            const initialLeaderboard = updateLeaderboardScore(
+              newFid,
+              updatedProfile.name,
+              updatedProfile.neighbourhoodId,
+              logs,
+              initialBadges,
+              defaultVehicles
+            );
+            initialLeaderboard.forEach((entry) => {
               batch.set(doc(db, 'leaderboard', entry.familyId), entry);
             });
 
@@ -547,7 +693,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             fetchGeminiReasoning(initialPlan, updatedProfile.name, logs);
           }
         } catch (error) {
-          console.error("Error loading/seeding data from Firestore:", error);
+          console.error('Error loading/seeding data from Firestore:', error);
         }
       } else {
         // Fall back to original localStorage loading logic
@@ -556,24 +702,24 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setFamilyProfile(JSON.parse(localProfile));
           setMembers(JSON.parse(localStorage.getItem('zr_members') || '[]'));
           setVehicles(JSON.parse(localStorage.getItem('zr_vehicles') || '[]'));
-          
+
           const rawLogs = JSON.parse(localStorage.getItem('zr_logs') || '[]');
-          const sanitizedLogs = rawLogs.map((log: any) => ({
+          const sanitizedLogs = rawLogs.map((log: EmissionLog) => ({
             ...log,
-            value: typeof log.value === 'number' ? Math.round(log.value * 10) / 10 : log.value
+            value: typeof log.value === 'number' ? Math.round(log.value * 10) / 10 : log.value,
           }));
           setEmissionLogs(sanitizedLogs);
           localStorage.setItem('zr_logs', JSON.stringify(sanitizedLogs));
-          
+
           const parsedBadges = JSON.parse(localStorage.getItem('zr_badges') || '[]');
           const activeFamilyId = JSON.parse(localProfile).id;
-          if (activeFamilyId && !parsedBadges.some((b: any) => b.badgeKey === 'ev_pioneer')) {
+          if (activeFamilyId && !parsedBadges.some((b: Badge) => b.badgeKey === 'ev_pioneer')) {
             parsedBadges.push({
               id: `badge_ev_migrated_${Date.now()}`,
               familyId: activeFamilyId,
               badgeKey: 'ev_pioneer',
               earnedAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-              treeUnlocked: true
+              treeUnlocked: true,
             });
             localStorage.setItem('zr_badges', JSON.stringify(parsedBadges));
           }
@@ -586,10 +732,14 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           localStorage.setItem('zr_profile', JSON.stringify(defaultProfile));
           localStorage.setItem('zr_members', JSON.stringify(defaultMembers));
           localStorage.setItem('zr_vehicles', JSON.stringify(defaultVehicles));
-          
-          const logs = generateMockLogsForMembers(DEFAULT_FAMILY_ID, defaultMembers, defaultVehicles);
+
+          const logs = generateMockLogsForMembers(
+            DEFAULT_FAMILY_ID,
+            defaultMembers,
+            defaultVehicles
+          );
           localStorage.setItem('zr_logs', JSON.stringify(logs));
-          
+
           const firstBadge = {
             id: 'badge_1',
             familyId: DEFAULT_FAMILY_ID,
@@ -608,24 +758,38 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           localStorage.setItem('zr_badges', JSON.stringify(initialBadges));
 
           const MondayOfThisWeek = new Date();
-          MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7));
+          MondayOfThisWeek.setDate(
+            MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7)
+          );
           const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
-          const lastWeekLogs = logs.filter(log => {
+          const lastWeekLogs = logs.filter((log) => {
             const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
             return diffDays > 7 && diffDays <= 14;
           });
 
-          const initialPlan = generateWeeklyPlan(DEFAULT_FAMILY_ID, weekStartStr, lastWeekLogs, defaultMembers, defaultVehicles);
+          const initialPlan = generateWeeklyPlan(
+            DEFAULT_FAMILY_ID,
+            weekStartStr,
+            lastWeekLogs,
+            defaultMembers,
+            defaultVehicles
+          );
           const initialPlans = [initialPlan];
           localStorage.setItem('zr_weekly_plans', JSON.stringify(initialPlans));
 
-          const initialNudge = evaluateNudges(DEFAULT_FAMILY_ID, logs.filter(log => {
-            const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-            return diffDays <= 7;
-          }), logs.filter(log => {
-            const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-            return diffDays > 7;
-          }), defaultProfile.goalPercent, 200);
+          const initialNudge = evaluateNudges(
+            DEFAULT_FAMILY_ID,
+            logs.filter((log) => {
+              const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+              return diffDays <= 7;
+            }),
+            logs.filter((log) => {
+              const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+              return diffDays > 7;
+            }),
+            defaultProfile.goalPercent,
+            200
+          );
           localStorage.setItem('zr_nudge', JSON.stringify(initialNudge));
 
           setFamilyProfile(defaultProfile);
@@ -636,7 +800,14 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setBadges(initialBadges);
           setNudgeAlert(initialNudge);
 
-          const initialLeaderboard = updateLeaderboardScore(DEFAULT_FAMILY_ID, defaultProfile.name, defaultProfile.neighbourhoodId, logs, initialBadges, defaultVehicles);
+          const initialLeaderboard = updateLeaderboardScore(
+            DEFAULT_FAMILY_ID,
+            defaultProfile.name,
+            defaultProfile.neighbourhoodId,
+            logs,
+            initialBadges,
+            defaultVehicles
+          );
           setLeaderboard(initialLeaderboard);
           localStorage.setItem('zr_leaderboard', JSON.stringify(initialLeaderboard));
         }
@@ -653,6 +824,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else {
       loadData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const updateLeaderboardScore = (
@@ -664,18 +836,18 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     currVehicles: Vehicle[]
   ): LeaderboardEntry[] => {
     // Calculate current week reduction vs. last week
-    const thisWeekLogs = logs.filter(log => {
+    const thisWeekLogs = logs.filter((log) => {
       const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays <= 7;
     });
-    const lastWeekLogs = logs.filter(log => {
+    const lastWeekLogs = logs.filter((log) => {
       const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays > 7 && diffDays <= 14;
     });
 
     const thisWeekCo2 = thisWeekLogs.reduce((sum, l) => sum + l.co2Kg, 0);
     const lastWeekCo2 = lastWeekLogs.reduce((sum, l) => sum + l.co2Kg, 0);
-    
+
     let reductionPercent = 0;
     let co2Saved = 0;
 
@@ -685,7 +857,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // EV Bonus multiplier (extra 3% for EV owners as per PRD)
-    const hasEv = currVehicles.some(v => v.type === 'ev');
+    const hasEv = currVehicles.some((v) => v.type === 'ev');
     if (hasEv && reductionPercent > 0) {
       reductionPercent += 3.0;
     }
@@ -696,18 +868,20 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       neighbourhoodId: neighId,
       reductionPercent: Number(reductionPercent.toFixed(1)),
       co2Saved: Number(co2Saved.toFixed(1)),
-      badges: currBadges.map(b => b.badgeKey),
-      hasEvBadge: hasEv
+      badges: currBadges.map((b) => b.badgeKey),
+      hasEvBadge: hasEv,
     };
 
     // Merge and sort
-    const cleanList = defaultLeaderboard.filter(e => e.familyId !== famId);
-    const fullList = [...cleanList, myEntry].sort((a, b) => b.reductionPercent - a.reductionPercent);
-    
+    const cleanList = defaultLeaderboard.filter((e) => e.familyId !== famId);
+    const fullList = [...cleanList, myEntry].sort(
+      (a, b) => b.reductionPercent - a.reductionPercent
+    );
+
     // Add rank
     return fullList.map((entry, index) => ({
       ...entry,
-      weekRank: index + 1
+      weekRank: index + 1,
     }));
   };
 
@@ -719,7 +893,10 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     memberList: { name: string; ageGroup: 'child' | 'teen' | 'adult'; role: string }[],
     vehicleList: { type: 'petrol' | 'diesel' | 'cng' | 'ev'; label: string }[]
   ) => {
-    const currentFirebaseUid = isFirebaseEnabled() && auth?.currentUser ? auth.currentUser.uid : null;
+    if (!db) return;
+    const batch = writeBatch(db);
+    const currentFirebaseUid =
+      isFirebaseEnabled() && auth?.currentUser ? auth.currentUser.uid : null;
     const fId = `fam_${Date.now()}`;
     const newProfile: FamilyProfile = {
       id: fId,
@@ -728,11 +905,11 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       cityId,
       neighbourhoodId,
       goalPercent,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     // Find primary member (first adult or fallback to index 0)
-    const primaryIndex = memberList.findIndex(m => m.ageGroup === 'adult');
+    const primaryIndex = memberList.findIndex((m) => m.ageGroup === 'adult');
     const actualPrimaryIdx = primaryIndex > -1 ? primaryIndex : 0;
 
     const newMembers: FamilyMember[] = memberList.map((m, idx) => {
@@ -745,7 +922,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         familyId: fId,
         name: m.name,
         ageGroup: m.ageGroup,
-        role: m.role
+        role: m.role,
       };
     });
 
@@ -754,26 +931,26 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       familyId: fId,
       type: v.type,
       label: v.label,
-      hasEvBadge: v.type === 'ev'
+      hasEvBadge: v.type === 'ev',
     }));
 
     // Generate mock logs for custom family
     const logs = generateMockLogsForMembers(fId, newMembers, newVehicles);
-    
+
     // Seed first badges (First Log and EV Pioneer)
     const firstBadge: Badge = {
       id: `badge_first_${Date.now()}`,
       familyId: fId,
       badgeKey: 'first_log',
       earnedAt: new Date().toISOString(),
-      treeUnlocked: true
+      treeUnlocked: true,
     };
     const evBadge: Badge = {
       id: `badge_ev_onboard_${Date.now()}`,
       familyId: fId,
       badgeKey: 'ev_pioneer',
       earnedAt: new Date().toISOString(),
-      treeUnlocked: true
+      treeUnlocked: true,
     };
     const initialBadges = [firstBadge, evBadge];
 
@@ -781,22 +958,34 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const MondayOfThisWeek = new Date();
     MondayOfThisWeek.setDate(MondayOfThisWeek.getDate() - ((MondayOfThisWeek.getDay() + 6) % 7));
     const weekStartStr = MondayOfThisWeek.toISOString().split('T')[0];
-    
-    const lastWeekLogs = logs.filter(log => {
+
+    const lastWeekLogs = logs.filter((log) => {
       const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays > 7 && diffDays <= 14;
     });
-    const initialPlan = generateWeeklyPlan(fId, weekStartStr, lastWeekLogs, newMembers, newVehicles);
+    const initialPlan = generateWeeklyPlan(
+      fId,
+      weekStartStr,
+      lastWeekLogs,
+      newMembers,
+      newVehicles
+    );
     const initialPlans = [initialPlan];
 
     // Calculate initial nudges
-    const initialNudge = evaluateNudges(fId, logs.filter(log => {
-      const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-      return diffDays <= 7;
-    }), logs.filter(log => {
-      const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
-      return diffDays > 7;
-    }), goalPercent, 180);
+    const initialNudge = evaluateNudges(
+      fId,
+      logs.filter((log) => {
+        const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays <= 7;
+      }),
+      logs.filter((log) => {
+        const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
+        return diffDays > 7;
+      }),
+      goalPercent,
+      180
+    );
 
     localStorage.setItem('zr_profile', JSON.stringify(newProfile));
     localStorage.setItem('zr_members', JSON.stringify(newMembers));
@@ -815,42 +1004,48 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setNudgeAlert(initialNudge);
 
     // Initialise leaderboard for new neighborhood using generated scores
-    const initialLeaderboard = updateLeaderboardScore(fId, name, neighbourhoodId, logs, initialBadges, newVehicles);
+    const initialLeaderboard = updateLeaderboardScore(
+      fId,
+      name,
+      neighbourhoodId,
+      logs,
+      initialBadges,
+      newVehicles
+    );
     setLeaderboard(initialLeaderboard);
     localStorage.setItem('zr_leaderboard', JSON.stringify(initialLeaderboard));
 
     if (isFirebaseEnabled() && db) {
       try {
-        const batch = writeBatch(db);
         batch.set(doc(db, 'families', fId), newProfile);
-        
-        newMembers.forEach(m => {
+
+        newMembers.forEach((m) => {
           batch.set(doc(db, 'familyMembers', m.id), m);
         });
-        
-        newVehicles.forEach(v => {
+
+        newVehicles.forEach((v) => {
           batch.set(doc(db, 'vehicles', v.id), v);
         });
-        
-        logs.forEach(l => {
+
+        logs.forEach((l) => {
           batch.set(doc(db, 'emissionLogs', l.id), l);
         });
-        
-        initialBadges.forEach(b => {
+
+        initialBadges.forEach((b) => {
           batch.set(doc(db, 'badges', b.id), b);
         });
-        
-        initialPlans.forEach(p => {
+
+        initialPlans.forEach((p) => {
           batch.set(doc(db, 'weeklyPlans', p.id), p);
         });
-        
-        initialLeaderboard.forEach(entry => {
+
+        initialLeaderboard.forEach((entry) => {
           batch.set(doc(db, 'leaderboard', entry.familyId), entry);
         });
-        
-        batch.commit().catch(e => console.error("Error committing setupFamily batch:", e));
+
+        batch.commit().catch((e) => console.error('Error committing setupFamily batch:', e));
       } catch (e) {
-        console.error("Error staging setupFamily batch:", e);
+        console.error('Error staging setupFamily batch:', e);
       }
     }
 
@@ -867,7 +1062,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       value: roundedValue,
       id: `log_${Date.now()}`,
       familyId: familyProfile.id,
-      co2Kg: computedCo2
+      co2Kg: computedCo2,
     };
 
     const updatedLogs = [newLog, ...emissionLogs];
@@ -878,94 +1073,97 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Check & Unlock First Log Badge
     let updatedBadges = [...badges];
-    if (!updatedBadges.some(b => b.badgeKey === 'first_log')) {
+    if (!updatedBadges.some((b) => b.badgeKey === 'first_log')) {
       const firstLogBadge: Badge = {
         id: `badge_first_${Date.now()}`,
         familyId: familyProfile.id,
         badgeKey: 'first_log',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       updatedBadges = [firstLogBadge, ...updatedBadges];
-      triggerBadgeNotification('first_log', familyProfile.id);
+      triggerBadgeNotification('first_log');
     }
 
     // Check EV Pioneer Badge (5 EV trips)
     if (log.subType === 'car_ev') {
-      const evTripsCount = updatedLogs.filter(l => l.subType === 'car_ev').length;
-      if (evTripsCount >= 5 && !updatedBadges.some(b => b.badgeKey === 'ev_pioneer')) {
+      const evTripsCount = updatedLogs.filter((l) => l.subType === 'car_ev').length;
+      if (evTripsCount >= 5 && !updatedBadges.some((b) => b.badgeKey === 'ev_pioneer')) {
         const evBadge: Badge = {
           id: `badge_ev_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'ev_pioneer',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         };
         updatedBadges = [...updatedBadges, evBadge];
-        triggerBadgeNotification('ev_pioneer', familyProfile.id);
+        triggerBadgeNotification('ev_pioneer');
       }
     }
 
     // Check Bus Champion (School bus/Public transit >= 3 times in a week)
     const transitSubtypes = ['school_bus', 'metro_train', 'auto_rickshaw'];
     if (transitSubtypes.includes(log.subType)) {
-      const thisWeekTransitCount = updatedLogs.filter(l => {
+      const thisWeekTransitCount = updatedLogs.filter((l) => {
         const diffDays = (Date.now() - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
         return diffDays <= 7 && transitSubtypes.includes(l.subType);
       }).length;
 
-      if (thisWeekTransitCount >= 3 && !updatedBadges.some(b => b.badgeKey === 'bus_champion')) {
+      if (thisWeekTransitCount >= 3 && !updatedBadges.some((b) => b.badgeKey === 'bus_champion')) {
         const busBadge: Badge = {
           id: `badge_bus_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'bus_champion',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         };
         updatedBadges = [...updatedBadges, busBadge];
-        triggerBadgeNotification('bus_champion', familyProfile.id);
+        triggerBadgeNotification('bus_champion');
       }
     }
 
     // Check Full Team Badge (All members log something in the week)
     const activeMembersLogged = new Set(
       updatedLogs
-        .filter(l => {
+        .filter((l) => {
           const diffDays = (Date.now() - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
           return diffDays <= 7;
         })
-        .map(l => l.memberId)
+        .map((l) => l.memberId)
     );
-    if (activeMembersLogged.size === members.length && !updatedBadges.some(b => b.badgeKey === 'full_team')) {
+    if (
+      activeMembersLogged.size === members.length &&
+      !updatedBadges.some((b) => b.badgeKey === 'full_team')
+    ) {
       const fullTeamBadge: Badge = {
         id: `badge_team_${Date.now()}`,
         familyId: familyProfile.id,
         badgeKey: 'full_team',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       updatedBadges = [...updatedBadges, fullTeamBadge];
-      triggerBadgeNotification('full_team', familyProfile.id);
+      triggerBadgeNotification('full_team');
     }
 
     // Check Cool It Badge (AC average < 4 hours per day in the last 7 days)
-    const acLogs = updatedLogs.filter(l => {
+    const acLogs = updatedLogs.filter((l) => {
       const diffDays = (Date.now() - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays <= 7 && l.subType === 'ac';
     });
     if (acLogs.length > 0) {
       const totalAcHours = acLogs.reduce((sum, l) => sum + l.value, 0);
       const avgAcHours = totalAcHours / 7;
-      if (avgAcHours < 4 && !updatedBadges.some(b => b.badgeKey === 'cool_it')) {
+      if (avgAcHours < 4 && !updatedBadges.some((b) => b.badgeKey === 'cool_it')) {
         const coolBadge: Badge = {
           id: `badge_cool_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'cool_it',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         };
         updatedBadges = [...updatedBadges, coolBadge];
-        triggerBadgeNotification('cool_it', familyProfile.id);
+        triggerBadgeNotification('cool_it');
       }
     }
 
@@ -974,7 +1172,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const nowMs = Date.now();
       const minDays = weekIdx * 7;
       const maxDays = (weekIdx + 1) * 7;
-      return updatedLogs.filter(l => {
+      return updatedLogs.filter((l) => {
         const diffDays = (nowMs - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
         return diffDays > minDays && diffDays <= maxDays;
       });
@@ -983,7 +1181,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const getOlderLogs = (weekIdx: number) => {
       const nowMs = Date.now();
       const minDays = (weekIdx + 1) * 7;
-      return updatedLogs.filter(l => {
+      return updatedLogs.filter((l) => {
         const diffDays = (nowMs - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
         return diffDays > minDays;
       });
@@ -1011,27 +1209,32 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const week0Hit = calculateWeekReduction(0);
     const week1Hit = calculateWeekReduction(1);
     const week2Hit = calculateWeekReduction(2);
-    if (week0Hit && week1Hit && week2Hit && !updatedBadges.some(b => b.badgeKey === 'on_a_roll')) {
+    if (
+      week0Hit &&
+      week1Hit &&
+      week2Hit &&
+      !updatedBadges.some((b) => b.badgeKey === 'on_a_roll')
+    ) {
       const streakBadge: Badge = {
         id: `badge_streak_${Date.now()}`,
         familyId: familyProfile.id,
         badgeKey: 'on_a_roll',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       updatedBadges = [...updatedBadges, streakBadge];
-      triggerBadgeNotification('on_a_roll', familyProfile.id);
+      triggerBadgeNotification('on_a_roll');
     }
 
     // Check Green Home (Energy emissions below target for 4 consecutive weeks)
     const getWeekEnergyCo2 = (weekIdx: number) => {
       return getWeekLogs(weekIdx)
-        .filter(l => l.category === 'energy')
+        .filter((l) => l.category === 'energy')
         .reduce((sum, l) => sum + l.co2Kg, 0);
     };
 
     const getBaselineEnergyCo2 = (weekIdx: number) => {
-      const oldEnergyLogs = getOlderLogs(weekIdx).filter(l => l.category === 'energy');
+      const oldEnergyLogs = getOlderLogs(weekIdx).filter((l) => l.category === 'energy');
       let baseEnergy = 90;
       if (oldEnergyLogs.length > 0) {
         const totalOldEnergy = oldEnergyLogs.reduce((sum, l) => sum + l.co2Kg, 0);
@@ -1047,7 +1250,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const wEnergy = getWeekEnergyCo2(weekIdx);
       const baseEnergy = getBaselineEnergyCo2(weekIdx);
       const targetEnergy = baseEnergy * (1 - familyProfile.goalPercent / 100);
-      const hasEnergyLogs = getWeekLogs(weekIdx).some(l => l.category === 'energy');
+      const hasEnergyLogs = getWeekLogs(weekIdx).some((l) => l.category === 'energy');
       return hasEnergyLogs && wEnergy <= targetEnergy;
     };
 
@@ -1055,61 +1258,87 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const energy1Below = isWeekEnergyBelowTarget(1);
     const energy2Below = isWeekEnergyBelowTarget(2);
     const energy3Below = isWeekEnergyBelowTarget(3);
-    if (energy0Below && energy1Below && energy2Below && energy3Below && !updatedBadges.some(b => b.badgeKey === 'green_home')) {
+    if (
+      energy0Below &&
+      energy1Below &&
+      energy2Below &&
+      energy3Below &&
+      !updatedBadges.some((b) => b.badgeKey === 'green_home')
+    ) {
       const greenHomeBadge: Badge = {
         id: `badge_gh_${Date.now()}`,
         familyId: familyProfile.id,
         badgeKey: 'green_home',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       updatedBadges = [...updatedBadges, greenHomeBadge];
-      triggerBadgeNotification('green_home', familyProfile.id);
+      triggerBadgeNotification('green_home');
     }
 
     // Save badges using helper which also checks forest_keeper
     updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
     // Recalculate Nudges
-    const currentWeekLogs = updatedLogs.filter(l => {
+    const currentWeekLogs = updatedLogs.filter((l) => {
       const diffDays = (Date.now() - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays <= 7;
     });
-    const historicalLogs = updatedLogs.filter(l => {
+    const historicalLogs = updatedLogs.filter((l) => {
       const diffDays = (Date.now() - new Date(l.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays > 7;
     });
 
     // Assume 180 kg as a placeholder baseline
-    const newNudge = evaluateNudges(familyProfile.id, currentWeekLogs, historicalLogs, familyProfile.goalPercent, 180);
+    const newNudge = evaluateNudges(
+      familyProfile.id,
+      currentWeekLogs,
+      historicalLogs,
+      familyProfile.goalPercent,
+      180
+    );
     setNudgeAlert(newNudge);
     localStorage.setItem('zr_nudge', JSON.stringify(newNudge));
 
     // Recalculate leaderboard
-    let finalLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, updatedLogs, updatedBadges, vehicles);
+    let finalLeaderboard = updateLeaderboardScore(
+      familyProfile.id,
+      familyProfile.name,
+      familyProfile.neighbourhoodId,
+      updatedLogs,
+      updatedBadges,
+      vehicles
+    );
 
     // Check Society Topper Badge (Ranked #1 on neighbourhood leaderboard)
-    const myRank = finalLeaderboard.find(e => e.familyId === familyProfile.id)?.weekRank;
-    if (myRank === 1 && !updatedBadges.some(b => b.badgeKey === 'society_topper')) {
+    const myRank = finalLeaderboard.find((e) => e.familyId === familyProfile.id)?.weekRank;
+    if (myRank === 1 && !updatedBadges.some((b) => b.badgeKey === 'society_topper')) {
       const topperBadge: Badge = {
         id: `badge_topper_${Date.now()}`,
         familyId: familyProfile.id,
         badgeKey: 'society_topper',
         earnedAt: new Date().toISOString(),
-        treeUnlocked: true
+        treeUnlocked: true,
       };
       updatedBadges = [...updatedBadges, topperBadge];
       updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
       // Recalculate leaderboard with new badge list
-      finalLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, updatedLogs, updatedBadges, vehicles);
+      finalLeaderboard = updateLeaderboardScore(
+        familyProfile.id,
+        familyProfile.name,
+        familyProfile.neighbourhoodId,
+        updatedLogs,
+        updatedBadges,
+        vehicles
+      );
     }
 
     setLeaderboard(finalLeaderboard);
     localStorage.setItem('zr_leaderboard', JSON.stringify(finalLeaderboard));
 
     if (isFirebaseEnabled() && db) {
-      finalLeaderboard.forEach(entry => {
+      finalLeaderboard.forEach((entry) => {
         writeDoc('leaderboard', entry.familyId, entry);
       });
     }
@@ -1119,7 +1348,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!familyProfile || weeklyPlans.length === 0) return;
 
     const activePlan = { ...weeklyPlans[0] };
-    const suggestionIndex = activePlan.suggestions.findIndex(s => s.id === suggestionId);
+    const suggestionIndex = activePlan.suggestions.findIndex((s) => s.id === suggestionId);
 
     if (suggestionIndex > -1) {
       activePlan.suggestions[suggestionIndex].completed = true;
@@ -1134,54 +1363,71 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // Handle specific suggestion badges (e.g. LED, plants)
       let updatedBadges = [...badges];
-      if (key === 'switch_led' && !updatedBadges.some(b => b.badgeKey === 'bright_idea')) {
+      if (key === 'switch_led' && !updatedBadges.some((b) => b.badgeKey === 'bright_idea')) {
         updatedBadges.push({
           id: `badge_led_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'bright_idea',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         });
-        triggerBadgeNotification('bright_idea', familyProfile.id);
-      } else if (key === 'indoor_plants' && !updatedBadges.some(b => b.badgeKey === 'plant_parent')) {
+        triggerBadgeNotification('bright_idea');
+      } else if (
+        key === 'indoor_plants' &&
+        !updatedBadges.some((b) => b.badgeKey === 'plant_parent')
+      ) {
         updatedBadges.push({
           id: `badge_plant_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'plant_parent',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         });
-        triggerBadgeNotification('plant_parent', familyProfile.id);
+        triggerBadgeNotification('plant_parent');
       }
 
       // Save badges using helper which also checks forest_keeper
       updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
       // Recalculate Leaderboard
-      let updatedLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, emissionLogs, updatedBadges, vehicles);
+      let updatedLeaderboard = updateLeaderboardScore(
+        familyProfile.id,
+        familyProfile.name,
+        familyProfile.neighbourhoodId,
+        emissionLogs,
+        updatedBadges,
+        vehicles
+      );
 
       // Check Society Topper Badge (Ranked #1 on neighbourhood leaderboard)
-      const myRank = updatedLeaderboard.find(e => e.familyId === familyProfile.id)?.weekRank;
-      if (myRank === 1 && !updatedBadges.some(b => b.badgeKey === 'society_topper')) {
+      const myRank = updatedLeaderboard.find((e) => e.familyId === familyProfile.id)?.weekRank;
+      if (myRank === 1 && !updatedBadges.some((b) => b.badgeKey === 'society_topper')) {
         const topperBadge: Badge = {
           id: `badge_topper_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'society_topper',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         };
         updatedBadges = [...updatedBadges, topperBadge];
         updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
         // Recalculate leaderboard with new badge list
-        updatedLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, emissionLogs, updatedBadges, vehicles);
+        updatedLeaderboard = updateLeaderboardScore(
+          familyProfile.id,
+          familyProfile.name,
+          familyProfile.neighbourhoodId,
+          emissionLogs,
+          updatedBadges,
+          vehicles
+        );
       }
 
       setLeaderboard(updatedLeaderboard);
       localStorage.setItem('zr_leaderboard', JSON.stringify(updatedLeaderboard));
 
       if (isFirebaseEnabled() && db) {
-        updatedLeaderboard.forEach(entry => {
+        updatedLeaderboard.forEach((entry) => {
           writeDoc('leaderboard', entry.familyId, entry);
         });
       }
@@ -1192,24 +1438,25 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!familyProfile || weeklyPlans.length === 0) return;
 
     const activePlan = { ...weeklyPlans[0] };
-    const actionIndex = activePlan.memberActions.findIndex(a => a.memberId === memberId);
+    const actionIndex = activePlan.memberActions.findIndex((a) => a.memberId === memberId);
 
     if (actionIndex > -1) {
-      activePlan.memberActions[actionIndex].completed = !activePlan.memberActions[actionIndex].completed;
+      activePlan.memberActions[actionIndex].completed =
+        !activePlan.memberActions[actionIndex].completed;
 
       // Check if all actions are completed -> Goal Getter
-      const allDone = activePlan.memberActions.every(a => a.completed);
+      const allDone = activePlan.memberActions.every((a) => a.completed);
       let updatedBadges = [...badges];
-      
-      if (allDone && !updatedBadges.some(b => b.badgeKey === 'goal_getter')) {
+
+      if (allDone && !updatedBadges.some((b) => b.badgeKey === 'goal_getter')) {
         updatedBadges.push({
           id: `badge_goal_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'goal_getter',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         });
-        triggerBadgeNotification('goal_getter', familyProfile.id);
+        triggerBadgeNotification('goal_getter');
       }
 
       // Update State
@@ -1223,30 +1470,44 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
       // Recalculate Leaderboard
-      let updatedLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, emissionLogs, updatedBadges, vehicles);
+      let updatedLeaderboard = updateLeaderboardScore(
+        familyProfile.id,
+        familyProfile.name,
+        familyProfile.neighbourhoodId,
+        emissionLogs,
+        updatedBadges,
+        vehicles
+      );
 
       // Check Society Topper Badge (Ranked #1 on neighbourhood leaderboard)
-      const myRank = updatedLeaderboard.find(e => e.familyId === familyProfile.id)?.weekRank;
-      if (myRank === 1 && !updatedBadges.some(b => b.badgeKey === 'society_topper')) {
+      const myRank = updatedLeaderboard.find((e) => e.familyId === familyProfile.id)?.weekRank;
+      if (myRank === 1 && !updatedBadges.some((b) => b.badgeKey === 'society_topper')) {
         const topperBadge: Badge = {
           id: `badge_topper_${Date.now()}`,
           familyId: familyProfile.id,
           badgeKey: 'society_topper',
           earnedAt: new Date().toISOString(),
-          treeUnlocked: true
+          treeUnlocked: true,
         };
         updatedBadges = [...updatedBadges, topperBadge];
         updatedBadges = updateAndSaveBadges(updatedBadges, familyProfile.id);
 
         // Recalculate leaderboard with new badge list
-        updatedLeaderboard = updateLeaderboardScore(familyProfile.id, familyProfile.name, familyProfile.neighbourhoodId, emissionLogs, updatedBadges, vehicles);
+        updatedLeaderboard = updateLeaderboardScore(
+          familyProfile.id,
+          familyProfile.name,
+          familyProfile.neighbourhoodId,
+          emissionLogs,
+          updatedBadges,
+          vehicles
+        );
       }
 
       setLeaderboard(updatedLeaderboard);
       localStorage.setItem('zr_leaderboard', JSON.stringify(updatedLeaderboard));
 
       if (isFirebaseEnabled() && db) {
-        updatedLeaderboard.forEach(entry => {
+        updatedLeaderboard.forEach((entry) => {
           writeDoc('leaderboard', entry.familyId, entry);
         });
       }
@@ -1261,25 +1522,33 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const fetchGeminiReasoning = async (plan: WeeklyPlan, famName?: string, customLogsList?: EmissionLog[]) => {
+  const fetchGeminiReasoning = async (
+    plan: WeeklyPlan,
+    famName?: string,
+    customLogsList?: EmissionLog[]
+  ) => {
     try {
       const targetLogs = customLogsList || emissionLogs || [];
       const planDate = new Date(plan.weekStart);
-      const logsForPlan = targetLogs.filter(log => {
+      const logsForPlan = targetLogs.filter((log) => {
         const logDate = new Date(log.date);
         const diffDays = (planDate.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24);
         return diffDays >= 0 && diffDays <= 7;
       });
 
-      const totalEnergy = logsForPlan.filter(l => l.category === 'energy').reduce((sum, l) => sum + l.co2Kg, 0);
-      const totalTransport = logsForPlan.filter(l => l.category === 'transport').reduce((sum, l) => sum + l.co2Kg, 0);
+      const totalEnergy = logsForPlan
+        .filter((l) => l.category === 'energy')
+        .reduce((sum, l) => sum + l.co2Kg, 0);
+      const totalTransport = logsForPlan
+        .filter((l) => l.category === 'transport')
+        .reduce((sum, l) => sum + l.co2Kg, 0);
 
-      const logsSummary = logsForPlan.map(l => ({
+      const logsSummary = logsForPlan.map((l) => ({
         category: l.category,
         subType: l.subType,
         value: l.value,
         unit: l.unit,
-        co2Kg: Number(l.co2Kg.toFixed(1))
+        co2Kg: Number(l.co2Kg.toFixed(1)),
       }));
 
       const res = await fetch('/api/generate-reasoning', {
@@ -1293,16 +1562,16 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           totalCo2: totalEnergy + totalTransport,
           totalEnergyCo2: totalEnergy,
           totalTransportCo2: totalTransport,
-          logsSummary: logsSummary.slice(0, 15)
-        })
+          logsSummary: logsSummary.slice(0, 15),
+        }),
       });
 
-      if (!res.ok) throw new Error("API call failed");
+      if (!res.ok) throw new Error('API call failed');
       const data = await res.json();
-      
+
       if (data.reasoning) {
-        setWeeklyPlans(prevPlans => {
-          const updatedPlans = prevPlans.map(p => {
+        setWeeklyPlans((prevPlans) => {
+          const updatedPlans = prevPlans.map((p) => {
             if (p.id === plan.id) {
               const updatedPlan = { ...p, reasoningText: data.reasoning };
               writeDoc('weeklyPlans', plan.id, updatedPlan);
@@ -1315,7 +1584,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         });
       }
     } catch (e) {
-      console.error("Failed to fetch Gemini weekly reasoning:", e);
+      console.error('Failed to fetch Gemini weekly reasoning:', e);
     }
   };
 
@@ -1323,7 +1592,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!familyProfile) return;
 
     // Filter logs for what would represent "last week"
-    const lastWeekLogs = emissionLogs.filter(log => {
+    const lastWeekLogs = emissionLogs.filter((log) => {
       const diffDays = (Date.now() - new Date(log.date).getTime()) / (1000 * 60 * 60 * 24);
       return diffDays <= 7;
     });
@@ -1331,7 +1600,7 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const startStr = new Date().toISOString().split('T')[0];
     const newPlan = generateWeeklyPlan(familyProfile.id, startStr, lastWeekLogs, members, vehicles);
     const updatedPlans = [newPlan, ...weeklyPlans];
-    
+
     setWeeklyPlans(updatedPlans);
     localStorage.setItem('zr_weekly_plans', JSON.stringify(updatedPlans));
 
@@ -1341,26 +1610,26 @@ export const FamilyProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   return (
-    <FamilyContext.Provider value={{
-      familyProfile,
-      members,
-      vehicles,
-      emissionLogs,
-      weeklyPlans,
-      badges,
-      nudgeAlert,
-      leaderboard,
-      setupFamily,
-      addLog,
-      markSuggestionCompleted,
-      markActionCompleted,
-      dismissNudge,
-      regeneratePlan
-    }}>
+    <FamilyContext.Provider
+      value={{
+        familyProfile,
+        members,
+        vehicles,
+        emissionLogs,
+        weeklyPlans,
+        badges,
+        nudgeAlert,
+        leaderboard,
+        setupFamily,
+        addLog,
+        markSuggestionCompleted,
+        markActionCompleted,
+        dismissNudge,
+        regeneratePlan,
+      }}
+    >
       {children}
-      {activeToast && (
-        <BadgeToast toast={activeToast} onClose={() => setActiveToast(null)} />
-      )}
+      {activeToast && <BadgeToast toast={activeToast} onClose={() => setActiveToast(null)} />}
     </FamilyContext.Provider>
   );
 };

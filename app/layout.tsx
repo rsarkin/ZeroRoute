@@ -19,7 +19,8 @@ const chido = localFont({
 
 export const metadata: Metadata = {
   title: 'ZeroRoute — Family Carbon Intelligence',
-  description: 'Track household energy, transport emissions, grow your family forest, and plan your reduction goals.',
+  description:
+    'Track household energy, transport emissions, grow your family forest, and plan your reduction goals.',
 };
 
 export default function RootLayout({
@@ -33,10 +34,8 @@ export default function RootLayout({
         <AuthProvider>
           <FamilyProvider>
             <Navbar />
-            <main className="flex-1 flex flex-col min-w-0 min-h-screen">
-              <div className="flex-1 flex flex-col">
-                {children}
-              </div>
+            <main className="flex-1 flex flex-col min-w-0 min-h-screen pb-16 md:pb-0">
+              <div className="flex-1 flex flex-col">{children}</div>
               <Footer />
             </main>
           </FamilyProvider>
