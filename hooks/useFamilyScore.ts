@@ -1,7 +1,23 @@
 import { useFamily } from '../providers/FamilyProvider';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const useFamilyScore = (): any => {
+export interface Equivalents {
+  carKms: number;
+  phoneCharges: number;
+  treeWeeks: number;
+}
+
+export interface FamilyScoreResult {
+  thisWeekCo2: number;
+  lastWeekCo2: number;
+  baselineCo2: number;
+  targetCo2: number;
+  budgetSpentPercent: number;
+  co2Saved: number;
+  actualReductionPercent: number;
+  equivalents: Equivalents;
+}
+
+export const useFamilyScore = (): FamilyScoreResult => {
   const { emissionLogs, familyProfile } = useFamily();
 
   // Establish a baseline (average of older weeks, or 180 kg if empty)

@@ -55,9 +55,9 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
   const handleLocationSelect = (lat: number, lng: number, placeName?: string) => {
     if (!(window as unknown as { google: unknown }).google) return;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { Geocoder } = (window as unknown as { google: { maps: { Geocoder: new () => any } } })
-      .google.maps;
+    const { Geocoder } = (
+      window as unknown as { google: { maps: { Geocoder: new () => unknown } } }
+    ).google.maps;
     const geocoder = new Geocoder();
     geocoder.geocode(
       { location: { lat, lng } },
@@ -125,8 +125,17 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       !(window as unknown as { google: unknown }).google
     )
       return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const google = (window as unknown as { google: any }).google;
+
+    const google = (
+      window as unknown as {
+        google: {
+          maps: {
+            Map: new (el: unknown, opt: unknown) => unknown;
+            Marker: new (opt: unknown) => unknown;
+          };
+        };
+      }
+    ).google;
 
     // Default Centers
     const center =
