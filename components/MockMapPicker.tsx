@@ -37,12 +37,10 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
       setIsScriptLoaded(true);
     };
 
-    if (isScriptLoaded && !(window as unknown as { google: unknown }).google) {
-      setIsScriptLoaded(true);
-    } else {
+    if (script) {
       script.addEventListener('load', handleLoad);
+      return;
     }
-    return;
 
     script = document.createElement('script');
     script.id = scriptId;
@@ -52,7 +50,6 @@ export const MockMapPicker: React.FC<MockMapPickerProps> = ({
     script.addEventListener('load', handleLoad);
     script.addEventListener('error', () => setLoadError(true));
     document.head.appendChild(script);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleMapsApiKey]);
 
   const handleLocationSelect = (lat: number, lng: number, placeName?: string) => {
